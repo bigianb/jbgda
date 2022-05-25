@@ -1,0 +1,80 @@
+package net.ijbrown.jbgda.eng.graph.vk;
+
+import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.util.vma.VmaAllocationCreateInfo;
+import org.lwjgl.vulkan.VkBufferCreateInfo;
+
+import java.nio.LongBuffer;
+
+import static org.lwjgl.system.MemoryUtil.NULL;
+import static org.lwjgl.util.vma.Vma.*;
+import static org.lwjgl.vulkan.VK11.*;
+
+public class VulkanBuffer {
+
+    private final long allocation;
+    private final long buffer;
+    private final Device device;
+    private final PointerBuffer pb;
+    private final long requestedSize;
+
+    private long mappedMemory;
+
+    public VulkanBuffer(Device device, long size, int bufferUsage, int memoryUsage, int requiredFlags) {
+        this.device = device;
+        requestedSize = size;
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            VkBufferCreateInfo bufferCreateInfo = VkBufferCreateInfo.calloc(stack)
+                    .sType(VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO)
+                    .size(size)
+                    .usage(bufferUsage)
+                    .sharingMode(VK_SHARING_MODE_EXCLUSIVE);
+
+            VmaAllocationCreateInfo allocInfo = VmaAllocationCreateInfo.calloc(stack)
+                    .requiredFlags(requiredFlags)
+                    .usage(memoryUsage);
+
+            PointerBuffer pAllocation = stack.callocPointer(1);
+            LongBuffer lp = stack.mallocLong(1);
+            VulkanUtils.vkCheck(vmaCreateBuffer(device.getMemoryAllocator().getVmaAllocator(), bufferCreateInfo, allocInfo, lp,
+                    pAllocation, null), "Failed to create buffer");
+            buffer = lp.get(0);
+            allocation = pAllocation.get(0);
+            pb = PointerBuffer.allocateDirect(1);
+        }
+    }
+
+    public void cleanup() {
+        unMap();
+        vmaDestroyBuffer(device.getMemoryAllocator().getVmaAllocator(), buffer, allocation);
+    }
+
+    public void flush() {
+        vmaFlushAllocation(device.getMemoryAllocator().getVmaAllocator(), allocation, 0, this.requestedSize);
+    }
+
+    public long getBuffer() {
+        return buffer;
+    }
+
+    public long getRequestedSize() {
+        return requestedSize;
+    }
+
+    public long map() {
+        if (mappedMemory == NULL) {
+            VulkanUtils.vkCheck(vmaMapMemory(device.getMemoryAllocator().getVmaAllocator(), allocation, pb),
+                    "Failed to map allocation");
+            mappedMemory = pb.get(0);
+        }
+        return mappedMemory;
+    }
+
+    public void unMap() {
+        if (mappedMemory != NULL) {
+            vmaUnmapMemory(device.getMemoryAllocator().getVmaAllocator(), allocation);
+            mappedMemory = NULL;
+        }
+    }
+}
