@@ -50,7 +50,7 @@ public class GIFTag
 
     public int getLength()
     {
-        if (2 == flg){
+        if (2 == flg || 3 == flg){
             // IMAGE mode
             return (nloop+1)*0x10;
         } else {
@@ -81,7 +81,7 @@ public class GIFTag
 
     public boolean isImage()
     {
-        return flg == 2;
+        return flg == 2 || flg == 3;
     }
 
     public String flagString()

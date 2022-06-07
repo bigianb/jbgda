@@ -67,7 +67,11 @@ public class ExtractFiles
         Logger.info("found {} tex files", texFileFinder.found.size());
         for (var texFile : texFileFinder.found){
             Logger.info("Converting {}", texFile.toString());
-            decoder.extract(texFile);
+            try {
+                decoder.extract(texFile);
+            } catch (RuntimeException e){
+                Logger.info("Failed to convert {}", texFile.toString());
+            }
         }
     }
 
