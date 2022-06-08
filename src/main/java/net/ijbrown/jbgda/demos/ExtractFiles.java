@@ -24,7 +24,7 @@ public class ExtractFiles
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
         // that pattern (useful for debugging).
 
-        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "hud_statusbar");
+        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "");
     }
 
     private void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
