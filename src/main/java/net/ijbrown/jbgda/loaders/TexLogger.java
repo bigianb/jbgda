@@ -81,6 +81,42 @@ public class TexLogger {
                         int addr = data[payloadIdx + 8];
                         switch (addr){
 
+                            case 0x50: {
+                                int sbp = DataUtil.getLEShort(data, payloadIdx) & 0x3FFF;
+                                int sbw = data[payloadIdx+2] & 0x3F;
+                                int spsm = data[payloadIdx+3] & 0x3F;
+
+                                int dbp = DataUtil.getLEShort(data, payloadIdx + 4) & 0x3FFF;
+                                int dbw = data[payloadIdx+6] & 0x3F;
+                                int dpsm = data[payloadIdx+7] & 0x3F;
+
+                                writer.write(prefix + "A+D, addr: BITBLTBUF:\n");
+                                writer.write(prefix + "                  SBP = " + sbp + ", SBW = " + sbw+  ", SPSM = " + spsm  + "\n");
+                                writer.write(prefix + "                  DBP = " + dbp + ", DBW = " + dbw + ", DPSM = " + dpsm + "\n");
+                            }
+                            break;
+                            case 0x51: {
+                                int ssax = DataUtil.getLEShort(data, payloadIdx) & 0x7FF;
+                                int ssay = DataUtil.getLEShort(data, payloadIdx+2) & 0x7FF;
+                                int dsax = DataUtil.getLEShort(data, payloadIdx+4) & 0x7FF;
+                                int dsay = DataUtil.getLEShort(data, payloadIdx+6) & 0x7FF;
+                                writer.write(prefix + "A+D, addr: TRXPOS:\n");
+                                writer.write(prefix + "                  SSAX = " + ssax + ", SSAY = " + ssay + "\n");
+                                writer.write(prefix + "                  DSAX = " + dsax + ", DSAY = " + dsay + "\n");
+                            }
+                            break;
+                            case 0x52: {
+                                int rrw = DataUtil.getLEShort(data, payloadIdx) & 0xFFF;
+                                int rrh = DataUtil.getLEShort(data, payloadIdx+4) & 0xFFF;
+                                writer.write(prefix + "A+D, addr: TRXREG:\n");
+                                writer.write(prefix + "                  RRH = " + rrh + ", RRW = " + rrw + "\n");
+                            }
+                            break;
+                            case 0x53: {
+                                int xdir = DataUtil.getLEShort(data, payloadIdx) & 3;
+                                writer.write(prefix + "A+D, addr: TRXDIR: " + xdir + "\n");
+                            }
+                            break;
                             case 98:
                                 writer.write(prefix + "A+D, addr: LABEL\n");
                                 break;

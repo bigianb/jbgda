@@ -49,12 +49,7 @@ public class GSMemory {
 
                 int gsIndex = startBlockPos + page * 2048 + block * 64 + column * 16 + cw;
                 gsIndex *= 4;
-/*
-                mem[gsIndex++] = data[dataIndex + 3];
-                mem[gsIndex++] = data[dataIndex + 2];
-                mem[gsIndex++] = data[dataIndex + 1];
-                mem[gsIndex] = data[dataIndex];
-*/
+
                 if (dataIndex < data.length) {
                     mem[gsIndex++] = data[dataIndex];
                     mem[gsIndex++] = data[dataIndex + 1];

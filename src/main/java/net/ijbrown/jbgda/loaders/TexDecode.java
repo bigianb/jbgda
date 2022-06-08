@@ -137,8 +137,8 @@ public class TexDecode
                 while (!gifTag3.isImage() && curIdx < endIndex - 0x10) {
                     int trxregOffset = findADEntry(fileData, curIdx + 0x10, gifTag3.nloop, TRXREG);
                     if (trxregOffset != 0) {
-                        rrw = DataUtil.getLEShort(fileData, trxregOffset);
-                        rrh = DataUtil.getLEShort(fileData, trxregOffset + 4);
+                        rrw = DataUtil.getLEShort(fileData, trxregOffset) & 0xFFF;
+                        rrh = DataUtil.getLEShort(fileData, trxregOffset + 4) & 0xFFF;
                     }
                     int trxposOffset = findADEntry(fileData, curIdx + 0x10, gifTag3.nloop, TRXPOS);
                     if (trxposOffset != 0) {
