@@ -50,7 +50,7 @@ public class GIFTag
 
     public int getLength()
     {
-        if (2 == flg || 3 == flg){
+        if (isImage()){
             // IMAGE mode
             return (nloop+1)*0x10;
         } else {
@@ -67,15 +67,16 @@ public class GIFTag
         sb.append("pre: ").append(pre).append(", ");
         sb.append("prim: ").append(HexUtil.formatHex(prim)).append(", ");
         sb.append("flg: ").append(flagString()).append(", ");
-        sb.append("nreg: ").append(nreg).append(", ");
-        sb.append("regs: ");
-        for (int r=0; r<nreg; ++r){
-            sb.append(regs[r]);
-            if (r != nreg){
-                sb.append(", ");
+        if (!isImage()) {
+            sb.append("nreg: ").append(nreg).append(", ");
+            sb.append("regs: ");
+            for (int r = 0; r < nreg; ++r) {
+                if (r != 0) {
+                    sb.append(", ");
+                }
+                sb.append(regs[r]);
             }
         }
-
         return sb.toString();
     }
 

@@ -74,7 +74,7 @@ public class TexDecode
                 for (int x = 0; x < tex.pixelsWidth && x < tex.targetWidth; ++x) {
                     PalEntry pixel = tex.pixels[y * tex.pixelsWidth + x];
                     if (pixel != null) {
-                        image.setRGB(x, y, pixel.argb());
+                        image.setRGB(x, y, pixel.rgb());
                     }
                 }
             }
@@ -85,7 +85,6 @@ public class TexDecode
     public static DecodedTex decodeTex(byte[] fileData, int startOffset, int length) {
         GSMemory gsMem = new GSMemory();
 
-        int endIndex = startOffset + length;
         int finalw = DataUtil.getLEShort(fileData, startOffset);
         int finalh = DataUtil.getLEShort(fileData, startOffset + 2);
 
@@ -97,10 +96,8 @@ public class TexDecode
 
         int offsetToGIF = DataUtil.getLEInt(fileData, startOffset + 16);
 
-        if (length == 0) {
-            int dataLen = DataUtil.getLEShort(fileData, startOffset + 0x06) * 16;
-            endIndex = startOffset + offsetToGIF + dataLen;
-        }
+        int dataLen = DataUtil.getLEShort(fileData, startOffset + 0x06) * 16;
+        int endIndex = startOffset + offsetToGIF + dataLen;
 
         int curIdx = offsetToGIF + startOffset;
         GIFTag gifTag = new GIFTag();
@@ -159,54 +156,60 @@ public class TexDecode
                     // TODO: look at the EOP in the giftag
 
                     curIdx += gifTag3.getLength();
-                    gifTag3.parse(fileData, curIdx);
+                    if (curIdx < endIndex - 0x10) {
+                        gifTag3.parse(fileData, curIdx);
+                    }
                 }
 
-                curIdx += 0x10;     // image gif tag
-                int bytesToTransfer = gifTag3.nloop * 16;
-                if (palette.length == 16) {
-                    // source is PSMT4. Dest can be PSMT4 or PSMCT32
-                    if (dpsm == PSMCT32) {
-                        byte[] imageData = fileData;
-                        int imageDataIdx = curIdx;
-                        // check for multiple IMAGE entries.
-                        int nextTagInd = bytesToTransfer + curIdx;
-                        if (nextTagInd < endIndex - 0x10) {
-                            GIFTag imageTag2 = new GIFTag();
-                            imageTag2.parse(fileData, nextTagInd);
-                            if (imageTag2.flg == 2) {
-                                // IMAGE
-                                int bytesToTransfer2 = imageTag2.nloop * 16;
-                                imageDataIdx = 0;
-                                imageData = new byte[bytesToTransfer + bytesToTransfer2];
-                                int j = curIdx;
-                                for (int i = 0; i < bytesToTransfer; ++i) {
-                                    imageData[i] = fileData[j];
+                if (gifTag3.isImage()) {
+                    curIdx += 0x10;     // image gif tag
+                    int bytesToTransfer = gifTag3.nloop * 16;
+                    if (palette.length == 16) {
+                        // source is PSMT4. Dest can be PSMT4 or PSMCT32
+                        if (dpsm == PSMCT32) {
+                            byte[] imageData = fileData;
+                            int imageDataIdx = curIdx;
+                            // check for multiple IMAGE entries.
+                            int nextTagInd = bytesToTransfer + curIdx;
+                            if (nextTagInd < endIndex - 0x10) {
+                                GIFTag imageTag2 = new GIFTag();
+                                imageTag2.parse(fileData, nextTagInd);
+                                if (imageTag2.flg == 2) {
+                                    // IMAGE
+                                    int bytesToTransfer2 = imageTag2.nloop * 16;
+                                    imageDataIdx = 0;
+                                    imageData = new byte[bytesToTransfer + bytesToTransfer2];
+                                    int j = curIdx;
+                                    for (int i = 0; i < bytesToTransfer; ++i) {
+                                        imageData[i] = fileData[j];
+                                    }
+                                    j = nextTagInd + 0x10;
+                                    for (int i = bytesToTransfer; i < bytesToTransfer + bytesToTransfer2; ++i) {
+                                        imageData[i] = fileData[j];
+                                    }
+                                    bytesToTransfer += imageTag2.getLength();
                                 }
-                                j = nextTagInd + 0x10;
-                                for (int i = bytesToTransfer; i < bytesToTransfer + bytesToTransfer2; ++i) {
-                                    imageData[i] = fileData[j];
-                                }
-                                bytesToTransfer += imageTag2.getLength();
                             }
+
+                            gsMem.writeTexPSMCT32(dbp, dbw, startx, starty, rrw, rrh, imageData, imageDataIdx);
+
+                            destWBytes = (finalw + 0x3f) & ~0x3f;
+                            bytes = gsMem.readTexPSMT4(dbp, destWBytes / 0x40, startx, starty, destWBytes, destHBytes);
+                            bytes = expand4bit(bytes);
+
+                        } else {
+                            // dest and source are the same and so image isn't swizzled
+                            bytes = transferPSMT4(bytes, fileData, curIdx, startx, starty, rrw, rrh, destWBytes, destHBytes);
                         }
 
-                        gsMem.writeTexPSMCT32(dbp, dbw, startx, starty, rrw, rrh, imageData, imageDataIdx);
-
-                        destWBytes = (finalw + 0x3f) & ~0x3f;
-                        bytes = gsMem.readTexPSMT4(dbp, destWBytes / 0x40, startx, starty, destWBytes, destHBytes);
-                        bytes = expand4bit(bytes);
-
                     } else {
-                        // dest and source are the same and so image isn't swizzled
-                        bytes = transferPSMT4(bytes, fileData, curIdx, startx, starty, rrw, rrh, destWBytes, destHBytes);
+                        // source is PSMT8. Dest is always PSMCT32.
+                        gsMem.writeTexPSMCT32(dbp, dbw, startx, starty, rrw, rrh, fileData, curIdx);
                     }
-                } else {
-                    // source is PSMT8. Dest is always PSMCT32.
-                    gsMem.writeTexPSMCT32(dbp, dbw, startx, starty, rrw, rrh, fileData, curIdx);
+                    curIdx += bytesToTransfer;
                 }
-                curIdx += bytesToTransfer;
             }
+
             if (palette.length == 256) {
                 destWBytes = (finalw + 0x3f) & ~0x3f;
                 destHBytes = finalh;

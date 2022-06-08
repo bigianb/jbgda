@@ -3,6 +3,7 @@ package net.ijbrown.jbgda.demos;
 import net.ijbrown.jbgda.loaders.*;
 import org.tinylog.Logger;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -18,10 +19,15 @@ import static java.nio.file.FileVisitResult.CONTINUE;
 public class ExtractFiles
 {
     public static void main(String[] args) throws IOException {
-        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE);
+
+        // Specify here if you want to extract all the GOB and LMP files (you only need to do this first time).
+        // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
+        // that pattern (useful for debugging).
+
+        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "hud_statusbar");
     }
 
-    private void doExtract(GameType gameType) throws IOException {
+    private void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
         var config = new Config(gameType);
         var gameDataPath = FileSystems.getDefault().getPath(config.getDataDir());
 
@@ -30,10 +36,11 @@ public class ExtractFiles
         Files.createDirectories(extractedPath);
 
         Logger.info("Extracting to {}", extractedPath);
-        //extractGobs(gameDataPath, extractedPath, gameType);
-        //extractLmps(gameDataPath, extractedPath, gameType);
-
-        convertTexFiles(extractedPath, gameType);
+        if (extractLmps) {
+            extractGobs(gameDataPath, extractedPath, gameType);
+            extractLmps(gameDataPath, extractedPath, gameType);
+        }
+        convertTexFiles(extractedPath, gameType, pattern);
     }
 
     public static class FileFinder extends SimpleFileVisitor<Path>
@@ -58,7 +65,7 @@ public class ExtractFiles
         }
     }
 
-    private void convertTexFiles(Path extractedPath, GameType gameType) throws IOException {
+    private void convertTexFiles(Path extractedPath, GameType gameType, String pattern) throws IOException {
         TexDecode decoder = new TexDecode();
 
         var texFileFinder = new FileFinder(".tex");
@@ -66,12 +73,26 @@ public class ExtractFiles
 
         Logger.info("found {} tex files", texFileFinder.found.size());
         for (var texFile : texFileFinder.found){
-            Logger.info("Converting {}", texFile.toString());
-            try {
-                decoder.extract(texFile);
-            } catch (RuntimeException e){
-                Logger.info("Failed to convert {}", texFile.toString());
+            if (pattern == null || pattern.isEmpty() || texFile.toString().contains(pattern)) {
+                Logger.info("Converting {}", texFile.toString());
+                try {
+                    decoder.extract(texFile);
+                } catch (RuntimeException e) {
+                    Logger.info("Failed to convert {}", texFile.toString());
+                }
+                LogTexFile(texFile);
             }
+        }
+    }
+
+    private void LogTexFile(Path texPath) throws IOException {
+        var texLogger = new TexLogger();
+        var texFilename = texPath.getFileName().toString();
+        var outDir = texPath.getParent();
+        var txtFilename = texFilename.replace(".tex", "_tex.txt");
+        var outPath = outDir.resolve(txtFilename);
+        try (var writer = new FileWriter(outPath.toFile())){
+            texLogger.log(texPath, writer);
         }
     }
 

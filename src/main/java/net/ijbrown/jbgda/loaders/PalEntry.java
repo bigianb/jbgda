@@ -9,17 +9,15 @@ public class PalEntry
 
     public int argb()
     {
-        // in ps2 0x80 is fully transparent and 0 is opaque.
-        // in java 0 is transparent and 0xFF is opaque.
-
-        byte java_a = (byte)0xFF;
-        if (a < 0){
-            java_a = 0;
-        } else if (a > 0){
-            java_a = (byte)(0xFF - a*2);
-        }
-        return (java_a << 24) |
+        return (a << 24) |
                 ((r << 16) & 0xFF0000) |
+                ((g << 8) & 0xFF00) |
+                (b & 0xFF);
+    }
+
+    public int rgb()
+    {
+        return  0xFF000000 | ((r << 16) & 0xFF0000) |
                 ((g << 8) & 0xFF00) |
                 (b & 0xFF);
     }
