@@ -1,5 +1,6 @@
 package net.ijbrown.jbgda.demos;
 
+import net.ijbrown.jbgda.exporters.Gltf;
 import net.ijbrown.jbgda.loaders.*;
 import org.tinylog.Logger;
 
@@ -24,7 +25,7 @@ public class ExtractFiles
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
         // that pattern (useful for debugging).
 
-        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "");
+        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "chest_large");
     }
 
     private void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -41,6 +42,7 @@ public class ExtractFiles
             extractLmps(gameDataPath, extractedPath, gameType);
         }
         convertTexFiles(extractedPath, gameType, pattern);
+        convertVifFiles(extractedPath, gameType, pattern);
     }
 
     public static class FileFinder extends SimpleFileVisitor<Path>
@@ -65,6 +67,32 @@ public class ExtractFiles
         }
     }
 
+    private void convertVifFiles(Path extractedPath, GameType gameType, String pattern) throws IOException {
+        VifDecode decoder = new VifDecode();
+
+        var fileFinder = new FileFinder(".vif");
+        Files.walkFileTree(extractedPath, fileFinder);
+
+        Logger.info("found {} tex files", fileFinder.found.size());
+        for (var file : fileFinder.found){
+            if (pattern == null || pattern.isEmpty() || file.toString().contains(pattern)) {
+                Logger.debug("Converting {}", file.toString());
+                try {
+                    byte[] fileData = Files.readAllBytes(file);
+                    List<VifDecode.Mesh> meshList = decoder.decode(fileData, 0);
+                    var gltf = new Gltf(meshList);
+                    var vifFilename = file.getFileName().toString();
+                    var outDir = file.getParent();
+                    var gltfFilename = vifFilename.replace(".vif", "_vif.gltf");
+                    var outPath = outDir.resolve(gltfFilename);
+                    gltf.write(outPath);
+                } catch (RuntimeException e) {
+                    Logger.info("Failed to convert {}", file.toString());
+                }
+            }
+        }
+    }
+
     private void convertTexFiles(Path extractedPath, GameType gameType, String pattern) throws IOException {
         TexDecode decoder = new TexDecode();
 
@@ -74,7 +102,7 @@ public class ExtractFiles
         Logger.info("found {} tex files", texFileFinder.found.size());
         for (var texFile : texFileFinder.found){
             if (pattern == null || pattern.isEmpty() || texFile.toString().contains(pattern)) {
-                Logger.info("Converting {}", texFile.toString());
+                Logger.debug("Converting {}", texFile.toString());
                 try {
                     decoder.extract(texFile);
                 } catch (RuntimeException e) {

@@ -24,19 +24,6 @@ import java.util.List;
  */
 public class VifDecode
 {
-    public static void main(String[] args) throws IOException
-    {
-        GameType gameType = GameType.DARK_ALLIANCE;
-
-        Config config = new Config(gameType);
-        String inDir = config.getDataDir();
-        String outDir = inDir+"../DATA_extracted/";
-
-        VifDecode obj = new VifDecode();
-        obj.extract("loading_us", new File(outDir + "LOADING_LMP"), 264, 128);
-        //obj.extract("superman", new File(outDir + "SUPERMAN_LMP"), 264, 128);
-    }
-
     public List<Mesh> decode(byte[] data, int startOffset)
     {
         int sig = DataUtil.getLEInt(data, startOffset);
