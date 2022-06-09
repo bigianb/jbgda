@@ -56,23 +56,23 @@ public class Gltf
     public void write(JsonWriter writer) throws IOException {
         writer.openObject();
         writeAsset(writer);
-        Node sceneRootNode = new Node("scene");
-        nodes.add(sceneRootNode);
-        sceneRootNode.id = nodes.size()-1;
-        writeScene(writer, sceneRootNode);
 
         writer.writeKey("meshes");
         writer.openArray();
+        var meshIdx=0;
+        for(var mesh: meshes) {
+            writeMesh(writer, mesh);
 
-        // Just the first mesh for now
-        var mesh = meshes.get(0);
+            Node meshNode = new Node("mesh"+meshIdx);
+            meshNode.id = nodes.size();
+            meshNode.mesh = meshIdx;
+            nodes.add(meshNode);
 
-        sceneRootNode.mesh = 0;
-
-        writeMesh(writer, mesh);
-
+            ++meshIdx;
+        }
         writer.closeArray();
 
+        writeScene(writer, nodes);
         writeNodes(writer, "nodes", nodes);
         writeMaterials(writer);
         writeBuffers(writer);
@@ -315,14 +315,16 @@ public class Gltf
     }
 
     // write scene 0 which has a single node with id 0
-    private void writeScene(JsonWriter writer, Node rootNode) throws IOException {
+    private void writeScene(JsonWriter writer, List<Node> nodes) throws IOException {
         writer.writeKeyValue("scene", 0);
         writer.writeKey("scenes");
         writer.openArray();
         writer.openObject();
         writer.writeKey("nodes");
         writer.openArray();
-        writer.append(rootNode.id);
+        for(var node : nodes) {
+            writer.writeValue(node.id);
+        }
         writer.closeArray();
         writer.closeObject();
         writer.closeArray();
