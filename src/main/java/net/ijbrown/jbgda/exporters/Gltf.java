@@ -153,6 +153,7 @@ public class Gltf
                 writer.writeKey("attributes");
                 writer.openObject();
                     writer.writeKeyValue("POSITION", accessors.positionAccessor.id);
+                    writer.writeKeyValue("NORMAL", accessors.normalsAccessor.id);
                     writer.writeKeyValue("TEXCOORD_0", accessors.texcoord0Accessor.id);
                 writer.closeObject();
                 writer.writeKeyValue("indices", accessors.indicesAccessor.id);
@@ -229,6 +230,8 @@ public class Gltf
     private static class MeshPrimAccessors
     {
         public Accessor positionAccessor;
+
+        public Accessor normalsAccessor;
         public Accessor indicesAccessor;
         public Accessor texcoord0Accessor;
     }
@@ -237,9 +240,12 @@ public class Gltf
         int positionSize = mesh.vertices.size() * 12;
         int indicesSize = mesh.triangleIndices.size() * 2;
         int texCoordSize = mesh.uvCoords.size() * 2 * 4;
+        int normalsSize = mesh.normals.size() * 12;
+
         var posBuffer = createBuffer(positionSize);
         var idxBuffer = createBuffer(indicesSize);
         var texCoordBuffer = createBuffer(texCoordSize);
+        var normalsBuffer = createBuffer(normalsSize);
 
         int i=0;
         VifDecode.Vec3F minPos = new VifDecode.Vec3F(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE);
@@ -252,6 +258,19 @@ public class Gltf
             i = writeFloat(posBuffer.buffer, i, vec3.y);
             i = writeFloat(posBuffer.buffer, i, vec3.z);
         }
+
+        i=0;
+        VifDecode.Vec3F minNormal = new VifDecode.Vec3F(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE);
+        VifDecode.Vec3F maxNormal = new VifDecode.Vec3F(-Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE);
+
+        for (var vec3 : mesh.normals){
+            accumulateMin(minNormal, vec3);
+            accumulateMax(maxNormal, vec3);
+            i = writeFloat(normalsBuffer.buffer, i, vec3.x);
+            i = writeFloat(normalsBuffer.buffer, i, vec3.y);
+            i = writeFloat(normalsBuffer.buffer, i, vec3.z);
+        }
+
         i=0;
         for (var val : mesh.triangleIndices){
             i = writeShort(idxBuffer.buffer, i, val);
@@ -279,7 +298,7 @@ public class Gltf
                 minS = s;
             }
             if (t < minT){
-                minT = s;
+                minT = t;
             }
             i = writeFloat(texCoordBuffer.buffer, i, s);
             i = writeFloat(texCoordBuffer.buffer, i, t);
@@ -295,6 +314,10 @@ public class Gltf
         meshPrimAccessors.texcoord0Accessor = createAccessor(texCoordBuffer.id, 0, mesh.uvCoords.size(), "VEC2", ComponentType.FLOAT);
         meshPrimAccessors.texcoord0Accessor.min_fa = new float[]{minS, minT};
         meshPrimAccessors.texcoord0Accessor.max_fa = new float[]{maxS, maxT};
+
+        meshPrimAccessors.normalsAccessor = createAccessor(normalsBuffer.id, 0, mesh.normals.size(), "VEC3", ComponentType.FLOAT);
+        meshPrimAccessors.normalsAccessor.min_fa = new float[]{minNormal.x, minNormal.y, minNormal.z};
+        meshPrimAccessors.normalsAccessor.max_fa = new float[]{maxNormal.x, maxNormal.y, maxNormal.z};
         return meshPrimAccessors;
     }
 

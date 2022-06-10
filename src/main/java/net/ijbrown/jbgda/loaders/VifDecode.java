@@ -59,10 +59,10 @@ public class VifDecode
             if (vertexNum >= weight.startVertex && vertexNum <= weight.endVertex) {
                 return weight;
             }
-        }
+        }/*
         if (weights.size() != 0) {
             System.out.println("Failed to find vertex weight");
-        }
+        }*/
         return new VertexWeight();
     }
 
@@ -94,7 +94,9 @@ public class VifDecode
                 mesh.vertices.add(point);
             }
             for (var normal : chunk.normals) {
-                mesh.normals.add(new Vec3F(normal.x / 127.0f, normal.y / 127.0f, normal.z / 127.0f));
+                var fn = new Vec3F(normal.x / 127.0f, normal.y / 127.0f, normal.z / 127.0f);
+                normalise(fn);
+                mesh.normals.add(fn);
             }
 
             for (VertexWeight vw : chunk.vertexWeights) {
@@ -246,6 +248,13 @@ public class VifDecode
         return mesh;
     }
 
+    private static void normalise(Vec3F fn) {
+        var w = Math.sqrt(fn.x*fn.x + fn.y*fn.y + fn.z*fn.z);
+        fn.x = (float)(fn.x / w);
+        fn.y = (float)(fn.y / w);
+        fn.z = (float)(fn.z / w);
+    }
+
     public void extract(String name, File outDir, int texw, int texh) throws IOException
     {
         File file = new File(outDir, name + ".vif");
@@ -391,28 +400,28 @@ public class VifDecode
             int immCommand = DataUtil.getLEShort(fileData, offset);
             switch (vifCommand) {
                 case NOP_CMD:
-                    System.out.print(HexUtil.formatHex(offset) + " ");
-                    System.out.println("NOP");
+                    //System.out.print(HexUtil.formatHex(offset) + " ");
+                    //System.out.println("NOP");
                     offset += 4;
                     break;
                 case STCYCL_CMD:
-                    System.out.print(HexUtil.formatHex(offset) + " ");
-                    System.out.println("STCYCL: WL: " + (immCommand >> 8) + " CL: " + (immCommand & 0xFF));
+                    //System.out.print(HexUtil.formatHex(offset) + " ");
+                    //System.out.println("STCYCL: WL: " + (immCommand >> 8) + " CL: " + (immCommand & 0xFF));
                     offset += 4;
                     break;
                 case ITOP_CMD:
-                    System.out.print(HexUtil.formatHex(offset) + " ");
-                    System.out.println("ITOP: " + immCommand);
+                    //System.out.print(HexUtil.formatHex(offset) + " ");
+                    //System.out.println("ITOP: " + immCommand);
                     offset += 4;
                     break;
                 case STMOD_CMD:
-                    System.out.print(HexUtil.formatHex(offset) + " ");
-                    System.out.println("STMOD: " + immCommand);
+                    //System.out.print(HexUtil.formatHex(offset) + " ");
+                    //System.out.println("STMOD: " + immCommand);
                     offset += 4;
                     break;
                 case MSCAL_CMD:
-                    System.out.print(HexUtil.formatHex(offset) + " ");
-                    System.out.println("MSCAL: " + immCommand);
+                    //System.out.print(HexUtil.formatHex(offset) + " ");
+                    //System.out.println("MSCAL: " + immCommand);
                     if (immCommand != 66 && immCommand != 68 && immCommand != 70){
                         System.out.println("**** Microcode " + immCommand + " not supported");
                     }
@@ -427,7 +436,7 @@ public class VifDecode
                     System.out.print(HexUtil.formatHex(offset) + " ");
                     offset += 4;
                     int stmask = DataUtil.getLEInt(fileData, offset);
-                    System.out.println("STMASK: " + stmask);
+                    //System.out.println("STMASK: " + stmask);
                     offset += 4;
                     break;
                 default:
@@ -439,7 +448,7 @@ public class VifDecode
                         int addr = immCommand & 0x1ff;
                         boolean flag = (immCommand & 0x8000) == 0x8000;
                         boolean usn = (immCommand & 0x4000) == 0x4000;
-
+/*
                         System.out.print(HexUtil.formatHex(offset) + " ");
                         System.out.print("UNPACK: vn: " + vn + ", vl: " + vl + ", Addr: " + addr);
                         System.out.print(", num: " + numCommand);
@@ -453,6 +462,7 @@ public class VifDecode
                             System.out.print(", Mask");
                         }
                         System.out.println();
+ */
                         offset += 4;
                         if (vn == 1 && vl == 1) {
                             // v2-16
