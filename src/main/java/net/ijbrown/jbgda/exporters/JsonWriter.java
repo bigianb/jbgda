@@ -33,6 +33,11 @@ public class JsonWriter {
         writeValue(value);
     }
 
+    public void writeKeyValue(String key, double value) throws IOException {
+        writeKey(key);
+        writeValue(value);
+    }
+
     public void writeValue(float[] value) throws IOException {
         openArray();
         for (var f : value){
@@ -54,6 +59,14 @@ public class JsonWriter {
             writer.append(",");
         }
         writer.append(Float.toString(value));
+        needsComma = true;
+    }
+
+    public void writeValue(double value) throws IOException {
+        if (needsComma){
+            writer.append(",");
+        }
+        writer.append(Double.toString(value));
         needsComma = true;
     }
 

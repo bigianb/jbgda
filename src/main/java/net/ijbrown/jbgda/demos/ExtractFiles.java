@@ -25,7 +25,7 @@ public class ExtractFiles
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
         // that pattern (useful for debugging).
 
-        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "");
+        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "chest_large");
     }
 
     private void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -78,11 +78,26 @@ public class ExtractFiles
             if (pattern == null || pattern.isEmpty() || file.toString().contains(pattern)) {
                 Logger.debug("Converting {}", file.toString());
                 try {
-                    byte[] fileData = Files.readAllBytes(file);
-                    List<VifDecode.Mesh> meshList = decoder.decode(fileData, 0);
-                    var gltf = new Gltf(meshList);
                     var vifFilename = file.getFileName().toString();
                     var outDir = file.getParent();
+
+                    byte[] fileData = Files.readAllBytes(file);
+                    List<VifDecode.Mesh> meshList = decoder.decode(fileData, 0);
+
+                    int texW=0;
+                    int texH=0;
+                    String texName=vifFilename.replace(".vif", ".tex");
+                    String pngName=vifFilename.replace(".vif", ".png");
+
+                    var texPath = outDir.resolve(texName);
+                    if (Files.exists(texPath)){
+                        byte[] texData = Files.readAllBytes(texPath);
+                        texW = DataUtil.getLEShort(texData, 0);
+                        texH = DataUtil.getLEShort(texData, 2);
+                    }
+
+                    var gltf = new Gltf(meshList, pngName, texW, texH);
+
                     var gltfFilename = vifFilename.replace(".vif", "_vif.gltf");
                     var outPath = outDir.resolve(gltfFilename);
                     gltf.write(outPath);

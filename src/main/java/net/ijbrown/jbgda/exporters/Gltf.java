@@ -16,6 +16,9 @@ import java.util.List;
 public class Gltf
 {
     private final List<VifDecode.Mesh> meshes;
+    private final String texName;
+    private final int texW;
+    private final int texH;
 
     private static class Node
     {
@@ -41,8 +44,11 @@ public class Gltf
 
     private final int MATERIAL_ID = 0;
 
-    public Gltf(List<VifDecode.Mesh> meshes) {
+    public Gltf(List<VifDecode.Mesh> meshes, String texName, int texW, int texH) {
         this.meshes = meshes;
+        this.texName = texName;
+        this.texW = texW;
+        this.texH = texH;
     }
 
     public void write(Path outPath) throws IOException {
@@ -74,6 +80,8 @@ public class Gltf
 
         writeScene(writer, nodes);
         writeNodes(writer, "nodes", nodes);
+        writeImages(writer);
+        writeTextures(writer);
         writeMaterials(writer);
         writeBuffers(writer);
         writeAccessors(writer);
@@ -144,7 +152,8 @@ public class Gltf
                 writer.writeKeyValue("mode", 4);    // triangles
                 writer.writeKey("attributes");
                 writer.openObject();
-                writer.writeKeyValue("POSITION", accessors.positionAccessor.id);
+                    writer.writeKeyValue("POSITION", accessors.positionAccessor.id);
+                    writer.writeKeyValue("TEXCOORD_0", accessors.texcoord0Accessor.id);
                 writer.closeObject();
                 writer.writeKeyValue("indices", accessors.indicesAccessor.id);
 
@@ -221,13 +230,17 @@ public class Gltf
     {
         public Accessor positionAccessor;
         public Accessor indicesAccessor;
+        public Accessor texcoord0Accessor;
     }
 
     private MeshPrimAccessors buildAccessors(VifDecode.Mesh mesh) {
         int positionSize = mesh.vertices.size() * 12;
         int indicesSize = mesh.triangleIndices.size() * 2;
+        int texCoordSize = mesh.uvCoords.size() * 2 * 4;
         var posBuffer = createBuffer(positionSize);
         var idxBuffer = createBuffer(indicesSize);
+        var texCoordBuffer = createBuffer(texCoordSize);
+
         int i=0;
         VifDecode.Vec3F minPos = new VifDecode.Vec3F(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE);
         VifDecode.Vec3F maxPos = new VifDecode.Vec3F(-Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE);
@@ -244,12 +257,44 @@ public class Gltf
             i = writeShort(idxBuffer.buffer, i, val);
         }
 
+        float sCoeff = 1.0f / (16.0f * texW);
+        float tCoeff = 1.0f / (16.0f * texH);
+
+        float maxS = 0.0f;
+        float maxT = 0.0f;
+
+        float minS = 1.0f;
+        float minT = 1.0f;
+        i=0;
+        for (var uv : mesh.uvCoords){
+            float s = (float)uv.u * sCoeff;
+            float t = (float)uv.v * tCoeff;
+            if (s > maxS){
+                maxS = s;
+            }
+            if (t > maxT){
+                maxT = t;
+            }
+            if (s < minS){
+                minS = s;
+            }
+            if (t < minT){
+                minT = s;
+            }
+            i = writeFloat(texCoordBuffer.buffer, i, s);
+            i = writeFloat(texCoordBuffer.buffer, i, t);
+        }
+
         var meshPrimAccessors = new MeshPrimAccessors();
         meshPrimAccessors.positionAccessor = createAccessor(posBuffer.id, 0, mesh.vertices.size(), "VEC3", ComponentType.FLOAT);
         meshPrimAccessors.positionAccessor.min_fa = new float[]{minPos.x, minPos.y, minPos.z};
         meshPrimAccessors.positionAccessor.max_fa = new float[]{maxPos.x, maxPos.y, maxPos.z};
 
         meshPrimAccessors.indicesAccessor = createAccessor(idxBuffer.id, 0, mesh.triangleIndices.size(), "SCALAR", ComponentType.UNSIGNED_SHORT);
+
+        meshPrimAccessors.texcoord0Accessor = createAccessor(texCoordBuffer.id, 0, mesh.uvCoords.size(), "VEC2", ComponentType.FLOAT);
+        meshPrimAccessors.texcoord0Accessor.min_fa = new float[]{minS, minT};
+        meshPrimAccessors.texcoord0Accessor.max_fa = new float[]{maxS, maxT};
         return meshPrimAccessors;
     }
 
@@ -290,12 +335,43 @@ public class Gltf
         writer.closeArray();
     }
 
+    private void writeImages(JsonWriter writer) throws IOException {
+        if (texW > 0) {
+            writer.writeKey("images");
+            writer.openArray();
+            writer.openObject();
+            writer.writeKeyValue("uri", texName);
+            writer.closeObject();
+            writer.closeArray();
+        }
+    }
+
+    private void writeTextures(JsonWriter writer) throws IOException {
+        if (texW > 0) {
+            writer.writeKey("textures");
+            writer.openArray();
+            writer.openObject();
+            // index into the images array (which only has the one entry)
+            writer.writeKeyValue("source", 0);
+            writer.closeObject();
+            writer.closeArray();
+        }
+    }
+
     private void writeMaterials(JsonWriter writer) throws IOException {
         writer.writeKey("materials");
         writer.openArray();
         writer.openObject();
             writer.writeKeyValue("name", "material0");
             writer.writeKeyValue("doubleSided", true);
+            writer.writeKey("pbrMetallicRoughness");
+            writer.openObject();
+                writer.writeKey("baseColorTexture");
+                writer.openObject();
+                    writer.writeKeyValue("index", 0);
+                writer.closeObject();
+                writer.writeKeyValue("metallicFactor", 0.0);
+            writer.closeObject();
         writer.closeObject();
         writer.closeArray();
     }
