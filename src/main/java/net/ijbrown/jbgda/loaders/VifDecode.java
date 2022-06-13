@@ -1,4 +1,4 @@
-/*  Copyright (C) 2011 Ian Brown
+/*  Copyright (C) 2011-2022 Ian Brown
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,7 +15,6 @@
 */
 package net.ijbrown.jbgda.loaders;
 
-import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -95,8 +94,7 @@ public class VifDecode
             }
             for (var normal : chunk.normals) {
                 var fn = new Vec3F(normal.x / 127.0f, normal.y / 127.0f, normal.z / 127.0f);
-                normalise(fn);
-                mesh.normals.add(fn);
+                mesh.normals.add(normalise(fn));
             }
 
             for (VertexWeight vw : chunk.vertexWeights) {
@@ -248,34 +246,9 @@ public class VifDecode
         return mesh;
     }
 
-    private static void normalise(Vec3F fn) {
-        var w = Math.sqrt(fn.x*fn.x + fn.y*fn.y + fn.z*fn.z);
-        fn.x = (float)(fn.x / w);
-        fn.y = (float)(fn.y / w);
-        fn.z = (float)(fn.z / w);
-    }
-
-    public void extract(String name, File outDir, int texw, int texh) throws IOException
-    {
-        File file = new File(outDir, name + ".vif");
-        BufferedInputStream is = new BufferedInputStream(new FileInputStream(file));
-
-        int fileLength = (int) file.length();
-        byte[] fileData = new byte[fileLength];
-
-        int offset = 0;
-        int remaining = fileLength;
-        while (remaining > 0) {
-            int read = is.read(fileData, offset, remaining);
-            if (read == -1) {
-                throw new IOException("Read less bytes then expected when reading file");
-            }
-            remaining -= read;
-            offset += read;
-        }
-
-        List<Mesh> meshes = decode(fileData, 0);
-
+    private static Vec3F normalise(Vec3F fn) {
+        var w = (float)Math.sqrt(fn.x*fn.x + fn.y*fn.y + fn.z*fn.z);
+        return new Vec3F(fn.x / w,fn.y / w,fn.z / w);
     }
 
     public static class Vertex
@@ -283,17 +256,6 @@ public class VifDecode
         public short x;
         public short y;
         public short z;
-    }
-
-    public static class Vec3F
-    {
-        public Vec3F(float x, float y, float z){
-            this.x=x; this.y=y; this.z=z;
-        }
-
-        public float x;
-        public float y;
-        public float z;
     }
 
     public static class ByteVector

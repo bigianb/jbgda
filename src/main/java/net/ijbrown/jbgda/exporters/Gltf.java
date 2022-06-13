@@ -1,5 +1,6 @@
 package net.ijbrown.jbgda.exporters;
 
+import net.ijbrown.jbgda.loaders.Vec3F;
 import net.ijbrown.jbgda.loaders.VifDecode;
 
 import java.io.IOException;
@@ -35,6 +36,8 @@ public class Gltf
     }
 
     private final List<Node> nodes = new ArrayList<>();
+
+    private final List<Node> sceneNodes = new ArrayList<>();
 
     private static class Buffer
     {
@@ -73,12 +76,13 @@ public class Gltf
             meshNode.id = nodes.size();
             meshNode.mesh = meshIdx;
             nodes.add(meshNode);
-
+            sceneNodes.add(meshNode);
             ++meshIdx;
         }
         writer.closeArray();
 
-        writeScene(writer, nodes);
+        writeScene(writer, sceneNodes);
+
         writeNodes(writer, "nodes", nodes);
         writeImages(writer);
         writeTextures(writer);
@@ -248,24 +252,24 @@ public class Gltf
         var normalsBuffer = createBuffer(normalsSize);
 
         int i=0;
-        VifDecode.Vec3F minPos = new VifDecode.Vec3F(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE);
-        VifDecode.Vec3F maxPos = new VifDecode.Vec3F(-Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE);
+        Vec3F minPos = new Vec3F(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE);
+        Vec3F maxPos = new Vec3F(-Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE);
 
         for (var vec3 : mesh.vertices){
-            accumulateMin(minPos, vec3);
-            accumulateMax(maxPos, vec3);
+            minPos = min(minPos, vec3);
+            maxPos = max(maxPos, vec3);
             i = writeFloat(posBuffer.buffer, i, vec3.x);
             i = writeFloat(posBuffer.buffer, i, vec3.y);
             i = writeFloat(posBuffer.buffer, i, vec3.z);
         }
 
         i=0;
-        VifDecode.Vec3F minNormal = new VifDecode.Vec3F(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE);
-        VifDecode.Vec3F maxNormal = new VifDecode.Vec3F(-Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE);
+        Vec3F minNormal = new Vec3F(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE);
+        Vec3F maxNormal = new Vec3F(-Float.MAX_VALUE, -Float.MAX_VALUE, -Float.MAX_VALUE);
 
         for (var vec3 : mesh.normals){
-            accumulateMin(minNormal, vec3);
-            accumulateMax(maxNormal, vec3);
+            minNormal = min(minNormal, vec3);
+            maxNormal = max(maxNormal, vec3);
             i = writeFloat(normalsBuffer.buffer, i, vec3.x);
             i = writeFloat(normalsBuffer.buffer, i, vec3.y);
             i = writeFloat(normalsBuffer.buffer, i, vec3.z);
@@ -321,16 +325,16 @@ public class Gltf
         return meshPrimAccessors;
     }
 
-    private void accumulateMin(VifDecode.Vec3F minPos, VifDecode.Vec3F vec3) {
-        minPos.x = Math.min(minPos.x, vec3.x);
-        minPos.y = Math.min(minPos.y, vec3.y);
-        minPos.z = Math.min(minPos.z, vec3.z);
+    private Vec3F min(Vec3F minPos, Vec3F vec3) {
+        return new Vec3F(Math.min(minPos.x, vec3.x),
+                Math.min(minPos.y, vec3.y),
+                Math.min(minPos.z, vec3.z));
     }
 
-    private void accumulateMax(VifDecode.Vec3F maxPos, VifDecode.Vec3F vec3) {
-        maxPos.x = Math.max(maxPos.x, vec3.x);
-        maxPos.y = Math.max(maxPos.y, vec3.y);
-        maxPos.z = Math.max(maxPos.z, vec3.z);
+    private Vec3F max(Vec3F minPos, Vec3F vec3) {
+        return new Vec3F(Math.max(minPos.x, vec3.x),
+                Math.max(minPos.y, vec3.y),
+                Math.max(minPos.z, vec3.z));
     }
 
     private int writeShort(byte[] buf, int idx, Integer val) {

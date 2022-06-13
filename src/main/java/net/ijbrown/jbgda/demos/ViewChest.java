@@ -95,7 +95,7 @@ public class ViewChest implements IAppLogic {
         updateDirectionalLight();
     }
 
-    private static List<Float> vec3ToFloats(List<VifDecode.Vec3F> vec3s)
+    private static List<Float> vec3ToFloats(List<Vec3F> vec3s)
     {
         List<Float> floats = new ArrayList<>();
         for (var v3 : vec3s){

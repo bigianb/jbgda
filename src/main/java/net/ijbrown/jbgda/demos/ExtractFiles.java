@@ -26,6 +26,7 @@ public class ExtractFiles
         // that pattern (useful for debugging).
 
         new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "");
+        //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
     }
 
     private void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
