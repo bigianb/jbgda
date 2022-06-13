@@ -25,7 +25,7 @@ public class ExtractFiles
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
         // that pattern (useful for debugging).
 
-        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "");
+        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "bulette");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
     }
 
@@ -82,6 +82,10 @@ public class ExtractFiles
                     var vifFilename = file.getFileName().toString();
                     var outDir = file.getParent();
 
+                    // Find anm files in the same directory
+                    var anmFinder = new FileFinder(".anm");
+                    Files.walkFileTree(outDir, anmFinder);
+
                     byte[] fileData = Files.readAllBytes(file);
                     List<VifDecode.Mesh> meshList = decoder.decode(fileData, 0);
 
@@ -97,7 +101,16 @@ public class ExtractFiles
                         texH = DataUtil.getLEShort(texData, 2);
                     }
 
-                    var gltf = new Gltf(meshList, pngName, texW, texH);
+                    List<AnmData> anmList = new ArrayList<>();
+                    for(var anmPath : anmFinder.found){
+                        byte[] anmFileData = Files.readAllBytes(anmPath);
+                        AnmDecoder anmDecoder = new AnmDecoder();
+                        var anmData = anmDecoder.decode(anmFileData, 0, anmFileData.length);
+                        anmData.name = anmPath.getFileName().toString();
+                        anmList.add(anmData);
+                    }
+
+                    var gltf = new Gltf(meshList, pngName, texW, texH, anmList);
 
                     var gltfFilename = vifFilename.replace(".vif", "_vif.gltf");
                     var outPath = outDir.resolve(gltfFilename);

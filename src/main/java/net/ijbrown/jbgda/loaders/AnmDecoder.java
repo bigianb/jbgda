@@ -7,7 +7,7 @@ public class AnmDecoder
     public AnmData decode(byte[] data, int startOffset, int len)
     {
         var anmData = new AnmData();
-        anmData.numBones = DataUtil.getLEInt(data, startOffset);
+        anmData.numJoints = DataUtil.getLEInt(data, startOffset);
 
         int framePoseOffset = startOffset + DataUtil.getLEInt(data, startOffset+0x08);
         int bindingPoseOffset = startOffset + DataUtil.getLEInt(data, startOffset+0x0C);
@@ -15,7 +15,7 @@ public class AnmDecoder
 
         anmData.bindingPose = new ArrayList<>();
         int elOffset = bindingPoseOffset;
-        for (int i=0; i < anmData.numBones; ++i){
+        for (int i = 0; i < anmData.numJoints; ++i){
             float x = (float)DataUtil.getLEShort(data, elOffset) / 64.0f;
             float y = (float)DataUtil.getLEShort(data, elOffset+2) / 64.0f;
             float z = (float)DataUtil.getLEShort(data, elOffset+4) / 64.0f;
@@ -24,17 +24,17 @@ public class AnmDecoder
             elOffset += 8;
         }
 
-        anmData.skeletonDef = new ArrayList<>();
-        for (int i=0; i < anmData.numBones; ++i) {
-            anmData.skeletonDef.add((int) data[skeletonDefOffset+i]);
+        anmData.jointParents = new ArrayList<>();
+        for (int i = 0; i < anmData.numJoints; ++i) {
+            anmData.jointParents.add((int) data[skeletonDefOffset+i]);
         }
 
-        var curPose = new AnmData.Pose[anmData.numBones];
+        var curPose = new AnmData.Pose[anmData.numJoints];
 
         var poses = new ArrayList<AnmData.Pose>();
-        for (int boneNo=0; boneNo < anmData.numBones; ++boneNo) {
+        for (int jointNo = 0; jointNo < anmData.numJoints; ++jointNo) {
 
-            int frameOffset = framePoseOffset + boneNo * 14;
+            int frameOffset = framePoseOffset + jointNo * 14;
 
             float x = (float)DataUtil.getLEShort(data, frameOffset) / 64.0f;
             float y = (float)DataUtil.getLEShort(data, frameOffset+2) / 64.0f;
@@ -49,40 +49,41 @@ public class AnmDecoder
             pose.rotation = new Quaternion(b, c, d, a);
             pose.angularVelocity = new Quaternion(0, 0, 0, 0);
             pose.position = new Vec3F(x, y, z);
-            pose.boneNo = boneNo;
+            pose.velocity = new Vec3F(0.0f, 0.0f, 0.0f);
+            pose.jointNo = jointNo;
             pose.frameNo = 0;
             poses.add(pose);
 
-            curPose[boneNo] = pose;
+            curPose[jointNo] = pose;
         }
 
-        var curAngVelFrame = new int[anmData.numBones];
-        var curVelFrame = new int[anmData.numBones];
+        var curAngVelFrame = new int[anmData.numJoints];
+        var curVelFrame = new int[anmData.numJoints];
 
         var totalFrame = 0;
 
         AnmData.Pose pose = null;
-        int thisFramePoseOffset = framePoseOffset + anmData.numBones * 14;
+        int thisFramePoseOffset = framePoseOffset + anmData.numJoints * 14;
         while (thisFramePoseOffset < startOffset+len){
             int count = data[thisFramePoseOffset++];
             int byte2 = data[thisFramePoseOffset++];
-            var boneNum = byte2 & 0x3f;
-            if (boneNum == 0x3f) {
+            var jointNo = byte2 & 0x3f;
+            if (jointNo == 0x3f) {
                 break;
             }
             totalFrame += count;
-            if (pose == null || pose.frameNo != totalFrame || pose.boneNo != boneNum){
+            if (pose == null || pose.frameNo != totalFrame || pose.jointNo != jointNo){
                 if (pose != null)
                 {
                     poses.add(pose);
                 }
                 pose = new AnmData.Pose();
                 pose.frameNo = totalFrame;
-                pose.boneNo = boneNum;
-                pose.position = curPose[boneNum].position;
-                pose.rotation = curPose[boneNum].rotation;
-                pose.angularVelocity = curPose[boneNum].angularVelocity;
-                pose.velocity = curPose[boneNum].velocity;
+                pose.jointNo = jointNo;
+                pose.position = curPose[jointNo].position;
+                pose.rotation = curPose[jointNo].rotation;
+                pose.angularVelocity = curPose[jointNo].angularVelocity;
+                pose.velocity = curPose[jointNo].velocity;
             }
 
             // bit 7 specifies whether to read 4 (set) or 3 elements following
@@ -103,7 +104,7 @@ public class AnmDecoder
                 }
                 Quaternion angVel = new Quaternion(b, c, d, a);
                 var prevAngVel = pose.angularVelocity;
-                var coeff = (totalFrame - curAngVelFrame[boneNum]) / 131072.0f;
+                var coeff = (totalFrame - curAngVelFrame[jointNo]) / 131072.0f;
                 Quaternion angDelta = new Quaternion(prevAngVel.a * coeff,
                         prevAngVel.b * coeff,
                         prevAngVel.c * coeff,
@@ -115,9 +116,9 @@ public class AnmDecoder
                 pose.frameNo = totalFrame;
                 pose.angularVelocity = angVel;
 
-                curPose[boneNum].rotation = pose.rotation;
-                curPose[boneNum].angularVelocity = pose.angularVelocity;
-                curAngVelFrame[boneNum] = totalFrame;
+                curPose[jointNo].rotation = pose.rotation;
+                curPose[jointNo].angularVelocity = pose.angularVelocity;
+                curAngVelFrame[jointNo] = totalFrame;
             } else {
                 int x,y,z;
                 if ((byte2 & 0x40) == 0x40)
@@ -136,15 +137,15 @@ public class AnmDecoder
 
                 Vec3F vel = new Vec3F(x, y, z);
                 var prevVel = pose.velocity;
-                var coeff = (totalFrame - curVelFrame[boneNum]) / 512.0f;
+                var coeff = (totalFrame - curVelFrame[jointNo]) / 512.0f;
                 Vec3F posDelta = new Vec3F(prevVel.x * coeff, prevVel.y * coeff, prevVel.z * coeff);
                 pose.position = new Vec3F(pose.position.x + posDelta.x, pose.position.y + posDelta.y,pose.position.z + posDelta.z);
                 pose.frameNo = totalFrame;
                 pose.velocity = vel;
 
-                curPose[boneNum].position = pose.position;
-                curPose[boneNum].velocity = pose.velocity;
-                curVelFrame[boneNum] = totalFrame;
+                curPose[jointNo].position = pose.position;
+                curPose[jointNo].velocity = pose.velocity;
+                curVelFrame[jointNo] = totalFrame;
             }
         }
         if (pose != null){

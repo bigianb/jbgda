@@ -1,5 +1,6 @@
 package net.ijbrown.jbgda.exporters;
 
+import net.ijbrown.jbgda.loaders.AnmData;
 import net.ijbrown.jbgda.loaders.Vec3F;
 import net.ijbrown.jbgda.loaders.VifDecode;
 
@@ -20,6 +21,7 @@ public class Gltf
     private final String texName;
     private final int texW;
     private final int texH;
+    private final List<AnmData> animations;
 
     private static class Node
     {
@@ -47,11 +49,12 @@ public class Gltf
 
     private final int MATERIAL_ID = 0;
 
-    public Gltf(List<VifDecode.Mesh> meshes, String texName, int texW, int texH) {
+    public Gltf(List<VifDecode.Mesh> meshes, String texName, int texW, int texH, List<AnmData> animations) {
         this.meshes = meshes;
         this.texName = texName;
         this.texW = texW;
         this.texH = texH;
+        this.animations = animations;
     }
 
     public void write(Path outPath) throws IOException {
