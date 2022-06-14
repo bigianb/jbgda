@@ -25,7 +25,7 @@ public class ExtractFiles
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
         // that pattern (useful for debugging).
 
-        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "bulette");
+        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "chest_large");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
     }
 
@@ -116,7 +116,7 @@ public class ExtractFiles
                     var outPath = outDir.resolve(gltfFilename);
                     gltf.write(outPath);
                 } catch (RuntimeException e) {
-                    Logger.info("Failed to convert {}", file.toString());
+                    Logger.error(e, "Failed to convert {}", file.toString());
                 }
             }
         }

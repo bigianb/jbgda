@@ -34,6 +34,7 @@ public class Gltf
         public Node(String name) {
             id = -1;
             this.name = name;
+            this.children = new ArrayList<>();
         }
     }
 
@@ -65,6 +66,49 @@ public class Gltf
         }
     }
 
+    private static class Skeleton
+    {
+        public Skeleton(){
+        }
+
+        public Node[] joints;
+    }
+
+
+    private void addNode(Gltf.Node node)
+    {
+        node.id = nodes.size();
+        nodes.add(node);
+    }
+
+    private Skeleton buildSkeleton()
+    {
+        if (animations.size() > 0) {
+            var skeleton = new Skeleton();
+            var rootNode = new Node("skel_root_"+nodes.size());
+            addNode(rootNode);
+
+            var anim = animations.get(0);
+            skeleton.joints = new Node[anim.numJoints+1];
+            skeleton.joints[0] = rootNode;
+            for (int joint=0; joint < anim.numJoints; ++joint) {
+                var node = new Node("skel_" + joint + '_' + nodes.size());
+                addNode(node);
+                skeleton.joints[joint+1] = node;
+            }
+
+            for (int joint=0; joint < anim.numJoints; ++joint){
+                var parentJointNoPlus1 = anim.jointParents.get(joint);
+                var pj = skeleton.joints[parentJointNoPlus1];
+                pj.children.add(skeleton.joints[joint+1]);
+            }
+            return skeleton;
+        }
+        return null;
+    }
+
+
+
     public void write(JsonWriter writer) throws IOException {
         writer.openObject();
         writeAsset(writer);
@@ -76,14 +120,17 @@ public class Gltf
             writeMesh(writer, mesh);
 
             Node meshNode = new Node("mesh"+meshIdx);
-            meshNode.id = nodes.size();
+            addNode(meshNode);
             meshNode.mesh = meshIdx;
-            nodes.add(meshNode);
             sceneNodes.add(meshNode);
             ++meshIdx;
         }
         writer.closeArray();
 
+        var skeleton = buildSkeleton();
+        if (skeleton != null) {
+            writeSkeleton(writer, skeleton);
+        }
         writeScene(writer, sceneNodes);
 
         writeNodes(writer, "nodes", nodes);
@@ -93,6 +140,24 @@ public class Gltf
         writeBuffers(writer);
         writeAccessors(writer);
         writer.closeObject();
+    }
+
+    private void writeSkeleton(JsonWriter writer, Skeleton skeleton) throws IOException {
+        writer.writeKey("skins");
+        writer.openArray();
+        writer.openObject();
+
+        // TODO: inverseBindMatrices
+
+        writer.writeKey("joints");
+        writer.openArray();
+        for (var sj: skeleton.joints){
+            writer.writeValue(sj.id);
+        }
+        writer.closeArray();
+
+        writer.closeObject();
+        writer.closeArray();
     }
 
     private final List<Buffer> buffers = new ArrayList<>();
@@ -365,6 +430,15 @@ public class Gltf
         writer.closeArray();
     }
 
+    private void writeNodeRefs(JsonWriter writer, String name, List<Node> nodes) throws IOException {
+        writer.writeKey(name);
+        writer.openArray();
+        for (Node node : nodes) {
+            writer.writeValue(node.id);
+        }
+        writer.closeArray();
+    }
+
     private void writeImages(JsonWriter writer) throws IOException {
         if (texW > 0) {
             writer.writeKey("images");
@@ -415,7 +489,7 @@ public class Gltf
             writer.writeKeyValue("mesh", node.mesh);
         }
         if (node.children != null && !node.children.isEmpty()){
-            writeNodes(writer, "children", node.children);
+            writeNodeRefs(writer, "children", node.children);
         }
         writer.closeObject();
     }
