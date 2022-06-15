@@ -241,13 +241,8 @@ public class Gltf
                     writer.writeKeyValue("POSITION", accessors.positionAccessor.id);
                     writer.writeKeyValue("NORMAL", accessors.normalsAccessor.id);
                     writer.writeKeyValue("TEXCOORD_0", accessors.texcoord0Accessor.id);
-                    /*
-                    The JOINTS_0 attribute data contains the indices of the
-                    joints that should affect the vertex.
-                    The WEIGHTS_0 attribute data defines the weights indicating
-                    how strongly the joint should influence the vertex
-                     */
-
+                    writer.writeKeyValue("JOINTS_0", accessors.joints0Accessor.id);
+                    writer.writeKeyValue("WEIGHTS_0", accessors.weights0Accessor.id);
                 writer.closeObject();
                 writer.writeKeyValue("indices", accessors.indicesAccessor.id);
 
@@ -259,7 +254,7 @@ public class Gltf
 
     private enum ComponentType
     {
-        UNSIGNED_SHORT(5123), FLOAT(5126);
+        UNSIGNED_SHORT(5123), FLOAT(5126), SBYTE(5120), BYTE(5121);
 
         private final int id;
 
@@ -279,6 +274,8 @@ public class Gltf
         public float[] min_fa;
         public float[] max_fa;
 
+        public boolean normalised;
+
         public ComponentType componentType;
     }
 
@@ -293,6 +290,7 @@ public class Gltf
             writer.writeKeyValue("byteOffset", accessor.byteOffset);
             writer.writeKeyValue("count", accessor.count);
             writer.writeKeyValue("type", accessor.type);
+            writer.writeKeyValue("normalized", accessor.normalised);
             writer.writeKeyValue("componentType", accessor.componentType.id);
             if (accessor.min_fa != null){
                 writer.writeKeyValue("min", accessor.min_fa);
@@ -327,6 +325,10 @@ public class Gltf
         public Accessor normalsAccessor;
         public Accessor indicesAccessor;
         public Accessor texcoord0Accessor;
+
+        public Accessor joints0Accessor;
+
+        public Accessor weights0Accessor;
     }
 
     private Accessor buildInverseBindingMatrixAccessor(AnmData anmData)
@@ -352,12 +354,19 @@ public class Gltf
         return createAccessor(matBuffer.id, 0, matrices.size(), "MAT4", ComponentType.FLOAT);
     }
 
-
+    /*
+    The JOINTS_0 attribute data contains the indices of the
+    joints that should affect the vertex.
+    The WEIGHTS_0 attribute data defines the weights indicating
+    how strongly the joint should influence the vertex
+     */
     private MeshPrimAccessors buildAccessors(VifDecode.Mesh mesh) {
 
         // https://www.khronos.org/registry/glTF/specs/2.0/glTF-2.0.html#skinned-mesh-attributes
         
         int positionSize = mesh.vertices.size() * 12;
+        int jointsSize = mesh.vertices.size() * 4;          // 4 bytes
+        int weightsSize = mesh.vertices.size() * 4;        // 4 unsigned bytes
         int indicesSize = mesh.triangleIndices.size() * 2;
         int texCoordSize = mesh.uvCoords.size() * 2 * 4;
         int normalsSize = mesh.normals.size() * 12;
@@ -366,6 +375,10 @@ public class Gltf
         var idxBuffer = createBuffer(indicesSize);
         var texCoordBuffer = createBuffer(texCoordSize);
         var normalsBuffer = createBuffer(normalsSize);
+        var weightsBuffer = createBuffer(weightsSize);
+        var jointsBuffer = createBuffer(jointsSize);
+
+        populateWeightsAndJoints(weightsBuffer, jointsBuffer, mesh);
 
         int i=0;
         Vec3F minPos = new Vec3F(Float.MAX_VALUE, Float.MAX_VALUE, Float.MAX_VALUE);
@@ -438,7 +451,38 @@ public class Gltf
         meshPrimAccessors.normalsAccessor = createAccessor(normalsBuffer.id, 0, mesh.normals.size(), "VEC3", ComponentType.FLOAT);
         meshPrimAccessors.normalsAccessor.min_fa = new float[]{minNormal.x, minNormal.y, minNormal.z};
         meshPrimAccessors.normalsAccessor.max_fa = new float[]{maxNormal.x, maxNormal.y, maxNormal.z};
+
+        meshPrimAccessors.joints0Accessor = createAccessor(jointsBuffer.id, 0, mesh.vertices.size(), "VEC4", ComponentType.BYTE);
+        meshPrimAccessors.weights0Accessor = createAccessor(weightsBuffer.id, 0, mesh.vertices.size(), "VEC4", ComponentType.BYTE);
+        meshPrimAccessors.weights0Accessor.normalised=true;
         return meshPrimAccessors;
+    }
+
+    private void populateWeightsAndJoints(Buffer weightsBuffer, Buffer jointsBuffer, VifDecode.Mesh mesh) {
+        int numVertices = mesh.vertices.size();
+        for (var i=0; i<numVertices*4; ++i){
+            jointsBuffer.buffer[i] = 0;
+            weightsBuffer.buffer[i] = 0;
+        }
+
+        for (var vw : mesh.vertexWeights){
+            int bone1 = vw.bone1 == 255 ? 0 : vw.bone1;
+            int bone2 = vw.bone2 == 255 ? 0 : vw.bone2;
+            int bone3 = vw.bone3 == 255 ? 0 : vw.bone3;
+            int bone4 = vw.bone4 == 255 ? 0 : vw.bone4;
+            for (var vnum=vw.startVertex; vnum < vw.endVertex; ++vnum){
+                int idx = vnum*4;
+                jointsBuffer.buffer[idx] = (byte)bone1;
+                jointsBuffer.buffer[idx+1] = (byte)bone2;
+                jointsBuffer.buffer[idx+2] = (byte)bone3;
+                jointsBuffer.buffer[idx+3] = (byte)bone4;
+
+                weightsBuffer.buffer[idx] = (byte)vw.boneWeight1;
+                weightsBuffer.buffer[idx+1] = (byte)vw.boneWeight2;
+                weightsBuffer.buffer[idx+2] = (byte)vw.boneWeight3;
+                weightsBuffer.buffer[idx+3] = (byte)vw.boneWeight4;
+            }
+        }
     }
 
     private Vec3F min(Vec3F minPos, Vec3F vec3) {

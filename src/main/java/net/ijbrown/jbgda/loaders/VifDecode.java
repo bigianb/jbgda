@@ -317,7 +317,8 @@ public class VifDecode
         }
 
         public VertexWeight() {
-
+            bone1 = bone2 = bone3 = bone4 = 255;
+            boneWeight1 = boneWeight2 = boneWeight3 = boneWeight4 = 0;
         }
     }
 
