@@ -1,6 +1,7 @@
 package net.ijbrown.jbgda.loaders;
 
 import java.util.List;
+import org.joml.*;
 
 public class AnmData
 {
@@ -8,7 +9,7 @@ public class AnmData
 
     public int numFrames;
 
-    public List<Vec3F> bindingPose;
+    public List<Vector3f> bindingPose;
 
     /*
     Skeleton structure.
@@ -24,8 +25,8 @@ public class AnmData
         int frameNo;
         public Quaternion rotation;
         public Quaternion angularVelocity;
-        public Vec3F position;
+        public Vector3f position;
 
-        public Vec3F velocity;
+        public Vector3f velocity;
     }
 }

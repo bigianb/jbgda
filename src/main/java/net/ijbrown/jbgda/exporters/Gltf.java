@@ -3,6 +3,7 @@ package net.ijbrown.jbgda.exporters;
 import net.ijbrown.jbgda.loaders.AnmData;
 import net.ijbrown.jbgda.loaders.Vec3F;
 import net.ijbrown.jbgda.loaders.VifDecode;
+import org.joml.Matrix4f;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -28,6 +29,9 @@ public class Gltf
         public int id;
         public String name;
         public int mesh = -1;
+
+        public int skin=-1;
+
         public int camera = -1;
         public List<Node> children;
 
@@ -56,6 +60,11 @@ public class Gltf
         this.texW = texW;
         this.texH = texH;
         this.animations = animations;
+    }
+
+    public boolean isAnimated()
+    {
+        return this.animations != null && this.animations.size() > 0;
     }
 
     public void write(Path outPath) throws IOException {
@@ -113,6 +122,8 @@ public class Gltf
         writer.openObject();
         writeAsset(writer);
 
+        boolean animated = isAnimated();
+
         writer.writeKey("meshes");
         writer.openArray();
         var meshIdx=0;
@@ -122,6 +133,9 @@ public class Gltf
             Node meshNode = new Node("mesh"+meshIdx);
             addNode(meshNode);
             meshNode.mesh = meshIdx;
+            if (animated){
+                meshNode.skin=0;
+            }
             sceneNodes.add(meshNode);
             ++meshIdx;
         }
@@ -129,7 +143,7 @@ public class Gltf
 
         var skeleton = buildSkeleton();
         if (skeleton != null) {
-            writeSkeleton(writer, skeleton);
+            writeSkeleton(writer, skeleton, animations);
         }
         writeScene(writer, sceneNodes);
 
@@ -142,13 +156,13 @@ public class Gltf
         writer.closeObject();
     }
 
-    private void writeSkeleton(JsonWriter writer, Skeleton skeleton) throws IOException {
+    private void writeSkeleton(JsonWriter writer, Skeleton skeleton, List<AnmData> animations) throws IOException {
         writer.writeKey("skins");
         writer.openArray();
         writer.openObject();
 
-        // TODO: inverseBindMatrices
-
+        var invBindAccessor = buildInverseBindingMatrixAccessor(animations.get(0));
+        writer.writeKeyValue("inverseBindMatrices", invBindAccessor.id);
         writer.writeKey("joints");
         writer.openArray();
         for (var sj: skeleton.joints){
@@ -227,6 +241,13 @@ public class Gltf
                     writer.writeKeyValue("POSITION", accessors.positionAccessor.id);
                     writer.writeKeyValue("NORMAL", accessors.normalsAccessor.id);
                     writer.writeKeyValue("TEXCOORD_0", accessors.texcoord0Accessor.id);
+                    /*
+                    The JOINTS_0 attribute data contains the indices of the
+                    joints that should affect the vertex.
+                    The WEIGHTS_0 attribute data defines the weights indicating
+                    how strongly the joint should influence the vertex
+                     */
+
                 writer.closeObject();
                 writer.writeKeyValue("indices", accessors.indicesAccessor.id);
 
@@ -308,7 +329,34 @@ public class Gltf
         public Accessor texcoord0Accessor;
     }
 
+    private Accessor buildInverseBindingMatrixAccessor(AnmData anmData)
+    {
+        List<Matrix4f> matrices = new ArrayList<>();
+        matrices.add(new Matrix4f());       // Root is at 0
+        for (var jointPos : anmData.bindingPose){
+            matrices.add(new Matrix4f().translation(jointPos));
+        }
+
+        return buildMat4Accessor(matrices);
+    }
+
+
+    private Accessor buildMat4Accessor(List<Matrix4f> matrices) {
+        // mat4 is column major
+        int matricesSize = matrices.size() * 16 * 4;
+        var matBuffer = createBuffer(matricesSize);
+        int i=0;
+        for (var matrix : matrices){
+            i = writeMatrix(matBuffer.buffer, i, matrix);
+        }
+        return createAccessor(matBuffer.id, 0, matrices.size(), "MAT4", ComponentType.FLOAT);
+    }
+
+
     private MeshPrimAccessors buildAccessors(VifDecode.Mesh mesh) {
+
+        // https://www.khronos.org/registry/glTF/specs/2.0/glTF-2.0.html#skinned-mesh-attributes
+        
         int positionSize = mesh.vertices.size() * 12;
         int indicesSize = mesh.triangleIndices.size() * 2;
         int texCoordSize = mesh.uvCoords.size() * 2 * 4;
@@ -421,6 +469,17 @@ public class Gltf
         return idx;
     }
 
+    private int writeMatrix(byte[] buffer, int iIn, Matrix4f matrix) {
+        int i=iIn;
+        for (int c=0; c<4; ++c){
+            for (int r=0; r<4; ++r){
+                float f = matrix.get(c, r);
+                i = writeFloat(buffer, i, f);
+            }
+        }
+        return i;
+    }
+
     private void writeNodes(JsonWriter writer, String name, List<Node> nodes) throws IOException {
         writer.writeKey(name);
         writer.openArray();
@@ -487,6 +546,9 @@ public class Gltf
         }
         if (node.mesh >= 0){
             writer.writeKeyValue("mesh", node.mesh);
+        }
+        if (node.skin >= 0){
+            writer.writeKeyValue("skin", node.skin);
         }
         if (node.children != null && !node.children.isEmpty()){
             writeNodeRefs(writer, "children", node.children);

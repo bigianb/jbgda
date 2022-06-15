@@ -1,5 +1,7 @@
 package net.ijbrown.jbgda.loaders;
 
+import org.joml.Vector3f;
+
 import java.util.ArrayList;
 
 public class AnmDecoder
@@ -20,7 +22,7 @@ public class AnmDecoder
             float y = (float)DataUtil.getLEShort(data, elOffset+2) / 64.0f;
             float z = (float)DataUtil.getLEShort(data, elOffset+4) / 64.0f;
 
-            anmData.bindingPose.add(new Vec3F(x, y, z));
+            anmData.bindingPose.add(new Vector3f(x, y, z));
             elOffset += 8;
         }
 
@@ -48,8 +50,8 @@ public class AnmDecoder
             var pose = new AnmData.Pose();
             pose.rotation = new Quaternion(b, c, d, a);
             pose.angularVelocity = new Quaternion(0, 0, 0, 0);
-            pose.position = new Vec3F(x, y, z);
-            pose.velocity = new Vec3F(0.0f, 0.0f, 0.0f);
+            pose.position = new Vector3f(x, y, z);
+            pose.velocity = new Vector3f(0.0f, 0.0f, 0.0f);
             pose.jointNo = jointNo;
             pose.frameNo = 0;
             poses.add(pose);
@@ -135,11 +137,11 @@ public class AnmDecoder
                     thisFramePoseOffset += 6;
                 }
 
-                Vec3F vel = new Vec3F(x, y, z);
+                Vector3f vel = new Vector3f(x, y, z);
                 var prevVel = pose.velocity;
                 var coeff = (totalFrame - curVelFrame[jointNo]) / 512.0f;
                 Vec3F posDelta = new Vec3F(prevVel.x * coeff, prevVel.y * coeff, prevVel.z * coeff);
-                pose.position = new Vec3F(pose.position.x + posDelta.x, pose.position.y + posDelta.y,pose.position.z + posDelta.z);
+                pose.position = new Vector3f(pose.position.x + posDelta.x, pose.position.y + posDelta.y,pose.position.z + posDelta.z);
                 pose.frameNo = totalFrame;
                 pose.velocity = vel;
 
