@@ -3,6 +3,7 @@ package net.ijbrown.jbgda.loaders;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class AnmDecoder
 {
@@ -17,17 +18,17 @@ public class AnmDecoder
         anmData.bindingPose = new ArrayList<>();
         int elOffset = bindingPoseOffset;
         for (int i = 0; i < anmData.numJoints; ++i) {
-            float x = (float) DataUtil.getLEShort(data, elOffset) / 64.0f;
-            float y = (float) DataUtil.getLEShort(data, elOffset + 2) / 64.0f;
-            float z = (float) DataUtil.getLEShort(data, elOffset + 4) / 64.0f;
+            float x = (float) DataUtil.getLEShort(data, elOffset) / -64.0f;
+            float y = (float) DataUtil.getLEShort(data, elOffset + 2) / -64.0f;
+            float z = (float) DataUtil.getLEShort(data, elOffset + 4) / -64.0f;
 
             anmData.bindingPose.add(new Vector3f(x, y, z));
             elOffset += 8;
         }
 
-        anmData.jointParents = new ArrayList<>();
+        anmData.skeletonDef = new ArrayList<>();
         for (int i = 0; i < anmData.numJoints; ++i) {
-            anmData.jointParents.add((int) data[skeletonDefOffset + i]);
+            anmData.skeletonDef.add((int) data[skeletonDefOffset + i]);
         }
 
         var curPose = new AnmData.Pose[anmData.numJoints];
@@ -158,16 +159,35 @@ public class AnmDecoder
     }
 
     private void buildLocalBindingPose(AnmData anmData) {
+
+        anmData.jointParents = transformSkeletondef(anmData.skeletonDef);
+
         anmData.bindingPoseLocal = new ArrayList<Vector3f>();
         for(int joint=0; joint< anmData.numJoints; ++joint){
             // Vector3f is mutable and sub mutates it.
             var jointPos = new Vector3f(anmData.bindingPose.get(joint));
             var parentJoint = anmData.jointParents.get(joint);
-            if(parentJoint > 0){
-                var parentPos = anmData.bindingPose.get(parentJoint-1);
+            if(parentJoint >= 0){
+                var parentPos = anmData.bindingPose.get(parentJoint);
                 jointPos.sub(parentPos);
             }
             anmData.bindingPoseLocal.add(jointPos);
         }
+    }
+
+    private List<Integer> transformSkeletondef(List<Integer> skeletonDef) {
+
+        List<Integer> parents = new ArrayList<>();
+        int path[] = new int[skeletonDef.size()+1];
+        path[0] = -1;
+
+        for (int jointNo=0; jointNo < skeletonDef.size(); ++jointNo)
+        {
+            int skelEntry = skeletonDef.get(jointNo);
+            parents.add(path[skelEntry]);
+            path[skelEntry+1] = jointNo;
+        }
+
+        return parents;
     }
 }

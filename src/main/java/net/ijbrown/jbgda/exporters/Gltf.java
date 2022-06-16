@@ -5,7 +5,6 @@ import net.ijbrown.jbgda.loaders.Vec3F;
 import net.ijbrown.jbgda.loaders.VifDecode;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
-import org.tinylog.Logger;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -111,8 +110,8 @@ public class Gltf
             }
 
             for (int joint=0; joint < anim.numJoints; ++joint){
-                var parentJointNoPlus1 = anim.jointParents.get(joint);
-                var pj = skeleton.joints[parentJointNoPlus1];
+                var parentJoint = anim.jointParents.get(joint);
+                var pj = skeleton.joints[parentJoint+1];
                 pj.children.add(skeleton.joints[joint+1]);
             }
             return skeleton;

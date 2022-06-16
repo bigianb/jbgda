@@ -16,11 +16,29 @@ public class AnmData
 
     /*
     Skeleton structure.
-    Each element in the array is a joint - element 0 is joint 0 etc.
-    The entry for a joint is the joint's parent + 1 (joint -1 is the origin).
-    An array of [0, 1] then defines 2 joints with parents [-1, 0]
+    This is an odd structure. Consider the entries 0,1,2,3,1,2,3,2,3
+
+    That defines the skeletal relationship. Backtracking effectively starts the count again.
+
+    root - 0 - 1 - 2 - 3
+           |
+           + - 4 - 5 - 6
+               |
+               + - 7 - 8
+
+     */
+    public List<Integer> skeletonDef;
+
+    /*
+    This is a sanitised version of skeletonDef. The example above would transform to:
+
+    -1, 0, 1, 2, 0, 4, 5, 4, 7
+
+    Each entry is the joint number of the parent with -1 indicating the root.
+
      */
     public List<Integer> jointParents;
+
     public String name;
 
     static class Pose {
