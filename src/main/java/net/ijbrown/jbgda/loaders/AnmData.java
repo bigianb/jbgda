@@ -11,6 +11,9 @@ public class AnmData
 
     public List<Vector3f> bindingPose;
 
+    /* The local position of each joint relative to the parent. */
+    public List<Vector3f> bindingPoseLocal;
+
     /*
     Skeleton structure.
     Each element in the array is a joint - element 0 is joint 0 etc.

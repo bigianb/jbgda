@@ -17,6 +17,7 @@ package net.ijbrown.jbgda.loaders;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Decodes a VIF model file.
@@ -58,11 +59,8 @@ public class VifDecode
             if (vertexNum >= weight.startVertex && vertexNum <= weight.endVertex) {
                 return weight;
             }
-        }/*
-        if (weights.size() != 0) {
-            System.out.println("Failed to find vertex weight");
-        }*/
-        return new VertexWeight();
+        }
+        return null;
     }
 
     public static Mesh ChunksToMesh(List<Chunk> chunks)
@@ -183,7 +181,7 @@ public class VifDecode
                         mesh.uvCoords.add(null);
 
                         var weight = FindVertexWeight(chunk.vertexWeights, originalVIdx - vstart);
-                        if (weight.boneWeight1 > 0)
+                        if (weight != null && weight.boneWeight1 > 0)
                         {
                             var vw = new VertexWeight(weight);
                             vw.startVertex = vidx1;
@@ -203,7 +201,7 @@ public class VifDecode
                         mesh.uvCoords.add(null);
 
                         var weight = FindVertexWeight(chunk.vertexWeights, originalVIdx - vstart);
-                        if (weight.boneWeight1 > 0)
+                        if (weight != null && weight.boneWeight1 > 0)
                         {
                             var vw = new VertexWeight(weight);
                             vw.startVertex = vidx2;
@@ -222,7 +220,7 @@ public class VifDecode
                         mesh.uvCoords.add(null);
 
                         var weight = FindVertexWeight(chunk.vertexWeights, originalVIdx - vstart);
-                        if (weight.boneWeight1 > 0)
+                        if (weight != null && weight.boneWeight1 > 0)
                         {
                             var vw = new VertexWeight(weight);
                             vw.startVertex = vidx3;
@@ -288,6 +286,19 @@ public class VifDecode
 
         public short u;
         public short v;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            UV uv = (UV) o;
+            return u == uv.u && v == uv.v;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(u, v);
+        }
     }
 
     public static class VertexWeight
@@ -520,7 +531,7 @@ public class VifDecode
                                 if (vw.bone2 == 0xFF) {
                                     // Single bone
                                     vw.boneWeight2 = 0;
-                                    int count = fileData[offset++];
+                                    int count = fileData[offset++] & 0xFF;
                                     curVertex += count;
                                 } else {
                                     vw.bone2 /= 4;
@@ -530,7 +541,7 @@ public class VifDecode
                                     if (vw.boneWeight1 + vw.boneWeight2 < 255)
                                     {
                                         ++i;
-                                        vw.bone3 = (fileData[offset++] &0xFF) / 4;
+                                        vw.bone3 = (fileData[offset++] & 0xFF) / 4;
                                         vw.boneWeight3 = fileData[offset++] & 0xFF;
                                         vw.bone4 = fileData[offset++] & 0xFF;
                                         int bw4 = fileData[offset++] & 0xFF;

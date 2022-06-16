@@ -6,21 +6,20 @@ import java.util.ArrayList;
 
 public class AnmDecoder
 {
-    public AnmData decode(byte[] data, int startOffset, int len)
-    {
+    public AnmData decode(byte[] data, int startOffset, int len) {
         var anmData = new AnmData();
         anmData.numJoints = DataUtil.getLEInt(data, startOffset);
 
-        int framePoseOffset = startOffset + DataUtil.getLEInt(data, startOffset+0x08);
-        int bindingPoseOffset = startOffset + DataUtil.getLEInt(data, startOffset+0x0C);
-        int skeletonDefOffset = startOffset + DataUtil.getLEInt(data, startOffset+0x10);
+        int framePoseOffset = startOffset + DataUtil.getLEInt(data, startOffset + 0x08);
+        int bindingPoseOffset = startOffset + DataUtil.getLEInt(data, startOffset + 0x0C);
+        int skeletonDefOffset = startOffset + DataUtil.getLEInt(data, startOffset + 0x10);
 
         anmData.bindingPose = new ArrayList<>();
         int elOffset = bindingPoseOffset;
-        for (int i = 0; i < anmData.numJoints; ++i){
-            float x = (float)DataUtil.getLEShort(data, elOffset) / 64.0f;
-            float y = (float)DataUtil.getLEShort(data, elOffset+2) / 64.0f;
-            float z = (float)DataUtil.getLEShort(data, elOffset+4) / 64.0f;
+        for (int i = 0; i < anmData.numJoints; ++i) {
+            float x = (float) DataUtil.getLEShort(data, elOffset) / 64.0f;
+            float y = (float) DataUtil.getLEShort(data, elOffset + 2) / 64.0f;
+            float z = (float) DataUtil.getLEShort(data, elOffset + 4) / 64.0f;
 
             anmData.bindingPose.add(new Vector3f(x, y, z));
             elOffset += 8;
@@ -28,7 +27,7 @@ public class AnmDecoder
 
         anmData.jointParents = new ArrayList<>();
         for (int i = 0; i < anmData.numJoints; ++i) {
-            anmData.jointParents.add((int) data[skeletonDefOffset+i]);
+            anmData.jointParents.add((int) data[skeletonDefOffset + i]);
         }
 
         var curPose = new AnmData.Pose[anmData.numJoints];
@@ -38,14 +37,14 @@ public class AnmDecoder
 
             int frameOffset = framePoseOffset + jointNo * 14;
 
-            float x = (float)DataUtil.getLEShort(data, frameOffset) / 64.0f;
-            float y = (float)DataUtil.getLEShort(data, frameOffset+2) / 64.0f;
-            float z = (float)DataUtil.getLEShort(data, frameOffset+4) / 64.0f;
+            float x = (float) DataUtil.getLEShort(data, frameOffset) / 64.0f;
+            float y = (float) DataUtil.getLEShort(data, frameOffset + 2) / 64.0f;
+            float z = (float) DataUtil.getLEShort(data, frameOffset + 4) / 64.0f;
 
-            float a = (float)DataUtil.getLEShort(data, frameOffset + 6) / 4096.0f;
-            float b = (float)DataUtil.getLEShort(data, frameOffset + 8) / 4096.0f;
-            float c = (float)DataUtil.getLEShort(data, frameOffset + 10) / 4096.0f;
-            float d = (float)DataUtil.getLEShort(data, frameOffset + 12) / 4096.0f;
+            float a = (float) DataUtil.getLEShort(data, frameOffset + 6) / 4096.0f;
+            float b = (float) DataUtil.getLEShort(data, frameOffset + 8) / 4096.0f;
+            float c = (float) DataUtil.getLEShort(data, frameOffset + 10) / 4096.0f;
+            float d = (float) DataUtil.getLEShort(data, frameOffset + 12) / 4096.0f;
 
             var pose = new AnmData.Pose();
             pose.rotation = new Quaternion(b, c, d, a);
@@ -66,7 +65,7 @@ public class AnmDecoder
 
         AnmData.Pose pose = null;
         int thisFramePoseOffset = framePoseOffset + anmData.numJoints * 14;
-        while (thisFramePoseOffset < startOffset+len){
+        while (thisFramePoseOffset < startOffset + len) {
             int count = data[thisFramePoseOffset++];
             int byte2 = data[thisFramePoseOffset++];
             var jointNo = byte2 & 0x3f;
@@ -74,9 +73,8 @@ public class AnmDecoder
                 break;
             }
             totalFrame += count;
-            if (pose == null || pose.frameNo != totalFrame || pose.jointNo != jointNo){
-                if (pose != null)
-                {
+            if (pose == null || pose.frameNo != totalFrame || pose.jointNo != jointNo) {
+                if (pose != null) {
                     poses.add(pose);
                 }
                 pose = new AnmData.Pose();
@@ -122,15 +120,12 @@ public class AnmDecoder
                 curPose[jointNo].angularVelocity = pose.angularVelocity;
                 curAngVelFrame[jointNo] = totalFrame;
             } else {
-                int x,y,z;
-                if ((byte2 & 0x40) == 0x40)
-                {
+                int x, y, z;
+                if ((byte2 & 0x40) == 0x40) {
                     x = data[thisFramePoseOffset++];
                     y = data[thisFramePoseOffset++];
                     z = data[thisFramePoseOffset++];
-                }
-                else
-                {
+                } else {
                     x = DataUtil.getLEShort(data, thisFramePoseOffset);
                     y = DataUtil.getLEShort(data, thisFramePoseOffset + 2);
                     z = DataUtil.getLEShort(data, thisFramePoseOffset + 4);
@@ -141,7 +136,7 @@ public class AnmDecoder
                 var prevVel = pose.velocity;
                 var coeff = (totalFrame - curVelFrame[jointNo]) / 512.0f;
                 Vec3F posDelta = new Vec3F(prevVel.x * coeff, prevVel.y * coeff, prevVel.z * coeff);
-                pose.position = new Vector3f(pose.position.x + posDelta.x, pose.position.y + posDelta.y,pose.position.z + posDelta.z);
+                pose.position = new Vector3f(pose.position.x + posDelta.x, pose.position.y + posDelta.y, pose.position.z + posDelta.z);
                 pose.frameNo = totalFrame;
                 pose.velocity = vel;
 
@@ -150,14 +145,29 @@ public class AnmDecoder
                 curVelFrame[jointNo] = totalFrame;
             }
         }
-        if (pose != null){
+        if (pose != null) {
             poses.add(pose);
         }
-        anmData.numFrames = totalFrame+1;
+        anmData.numFrames = totalFrame + 1;
 
+        buildLocalBindingPose(anmData);
         //animData.BuildPerFramePoses();
         //animData.BuildPerFrameFKPoses();
 
         return anmData;
+    }
+
+    private void buildLocalBindingPose(AnmData anmData) {
+        anmData.bindingPoseLocal = new ArrayList<Vector3f>();
+        for(int joint=0; joint< anmData.numJoints; ++joint){
+            // Vector3f is mutable and sub mutates it.
+            var jointPos = new Vector3f(anmData.bindingPose.get(joint));
+            var parentJoint = anmData.jointParents.get(joint);
+            if(parentJoint > 0){
+                var parentPos = anmData.bindingPose.get(parentJoint-1);
+                jointPos.sub(parentPos);
+            }
+            anmData.bindingPoseLocal.add(jointPos);
+        }
     }
 }

@@ -1,5 +1,7 @@
 package net.ijbrown.jbgda.exporters;
 
+import org.joml.Vector3f;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 
@@ -36,6 +38,19 @@ public class JsonWriter {
     public void writeKeyValue(String key, double value) throws IOException {
         writeKey(key);
         writeValue(value);
+    }
+
+    public void writeKeyValue(String key, Vector3f value) throws IOException {
+        writeKey(key);
+        writeValue(value);
+    }
+
+    private void writeValue(Vector3f value) throws IOException {
+        openArray();
+        writeValue(value.x());
+        writeValue(value.y());
+        writeValue(value.z());
+        closeArray();
     }
 
     public void writeValue(float[] value) throws IOException {
