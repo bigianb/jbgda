@@ -33,7 +33,6 @@ public class Gltf
 
         public int skin=-1;
 
-        public int camera = -1;
         public List<Node> children;
         public Vector3f translation;
 
@@ -149,6 +148,8 @@ public class Gltf
             writeSkeleton(writer, skeleton, animations);
             // The root of the skeleton is part of the scene.
             sceneNodes.add(skeleton.joints[0]);
+
+            writeAnimations(writer, animations, skeleton);
         }
         writeScene(writer, sceneNodes);
 
@@ -158,6 +159,134 @@ public class Gltf
         writeMaterials(writer);
         writeBuffers(writer);
         writeAccessors(writer);
+        writer.closeObject();
+    }
+
+    private void writeAnimations(JsonWriter writer, List<AnmData> animations, Skeleton skeleton) throws IOException {
+        writer.writeKey("animations");
+        writer.openArray();
+        for (var animation : animations){
+            if (animation.numJoints != skeleton.joints.length - 1){
+                // Animations must share the same skeleton.
+                // TODO: Need to do better than this. Sometimes skeleton is different even though the joints are the same.
+                continue;
+            }
+            writer.openObject();
+            writer.writeKeyValue("name", animation.name);
+            // We need to write 2 channels for each joint - one for translation and one for rotation
+            // We then need a sampler for each channel which actually provides the values.
+
+            // Note that the root joint is not animated.
+            int numJoints = skeleton.joints.length;
+            int sampler=0;
+            writer.writeKey("channels");
+            writer.openArray();
+            for(int jointNo=1; jointNo<numJoints; ++jointNo)
+            {
+                int jointNode = skeleton.joints[jointNo].id;
+                writeChannel(writer, sampler++, jointNode, "translation");
+                writeChannel(writer, sampler++, jointNode, "rotation");
+            }
+            writer.closeArray();
+
+            var timestampAccessor = buildKeyframeTimestampAccessor(animation.keyFrames);
+
+            writer.writeKey("samplers");
+            writer.openArray();
+            for(int jointNo=1; jointNo<numJoints; ++jointNo) {
+                writer.openObject();
+                writer.writeKeyValue("input", timestampAccessor.id);
+                writer.writeKeyValue("interpolation", "LINEAR");
+                var translationAccessor = buildTranslationAccessorForJoint(jointNo-1, animation.keyFrames);
+                writer.writeKeyValue("output", translationAccessor.id);
+                writer.closeObject();
+
+                writer.openObject();
+                writer.writeKeyValue("input", timestampAccessor.id);
+                writer.writeKeyValue("interpolation", "LINEAR");
+                var rotationAccessor = buildRotationAccessorForJoint(jointNo-1, animation.keyFrames);
+                writer.writeKeyValue("output", rotationAccessor.id);
+                writer.closeObject();
+            }
+            writer.closeArray();
+
+            writer.closeObject();
+        }
+
+        writer.closeArray();
+    }
+
+    private Accessor buildTranslationAccessorForJoint(int jointNo, List<AnmData.KeyFrame> keyFrames) {
+        int numFrames = keyFrames.size();
+        var buf = createBuffer(numFrames * 3 * 4);
+        int i=0;
+        float minx = Float.MAX_VALUE;
+        float miny = Float.MAX_VALUE;
+        float minz = Float.MAX_VALUE;
+        float maxx = -Float.MAX_VALUE;
+        float maxy = -Float.MAX_VALUE;
+        float maxz = -Float.MAX_VALUE;
+        for (var keyFrame: keyFrames) {
+            var pos = keyFrame.jointPositions.get(jointNo);
+            i = writeFloat(buf.buffer, i, pos.x);
+            i = writeFloat(buf.buffer, i, pos.y);
+            i = writeFloat(buf.buffer, i, pos.z);
+
+            if (pos.x > maxx){ maxx = pos.x;}
+            if (pos.x < minx){ minx = pos.x;}
+            if (pos.y > maxy){ maxy = pos.y;}
+            if (pos.y < miny){ miny = pos.y;}
+            if (pos.z > maxz){ maxz = pos.z;}
+            if (pos.z < minz){ minz = pos.z;}
+        }
+        var acc =  createAccessor(buf.id, 0, numFrames, "VEC3", ComponentType.FLOAT);
+        acc.max_fa = new float[]{maxx, maxy, maxz};
+        acc.min_fa = new float[]{minx, miny, minz};
+        return acc;
+    }
+
+    private Accessor buildRotationAccessorForJoint(int jointNo, List<AnmData.KeyFrame> keyFrames) {
+        int numFrames = keyFrames.size();
+        var buf = createBuffer(numFrames * 4 * 4);
+        int i=0;
+        float minx = Float.MAX_VALUE;
+        float miny = Float.MAX_VALUE;
+        float minz = Float.MAX_VALUE;
+        float minw = Float.MAX_VALUE;
+        float maxx = -Float.MAX_VALUE;
+        float maxy = -Float.MAX_VALUE;
+        float maxz = -Float.MAX_VALUE;
+        float maxw = -Float.MAX_VALUE;
+        for (var keyFrame: keyFrames) {
+            var rot = keyFrame.jointRotations.get(jointNo);
+            i = writeFloat(buf.buffer, i, rot.a);
+            i = writeFloat(buf.buffer, i, rot.b);
+            i = writeFloat(buf.buffer, i, rot.c);
+            i = writeFloat(buf.buffer, i, rot.w);
+
+            if (rot.a > maxx){ maxx = rot.a;}
+            if (rot.a < minx){ minx = rot.a;}
+            if (rot.b > maxy){ maxy = rot.b;}
+            if (rot.b < miny){ miny = rot.b;}
+            if (rot.c > maxz){ maxz = rot.c;}
+            if (rot.c < minz){ minz = rot.c;}
+            if (rot.w > maxw){ maxw = rot.w;}
+            if (rot.w < minw){ minw = rot.w;}
+        }
+        var acc =  createAccessor(buf.id, 0, numFrames, "VEC4", ComponentType.FLOAT);
+        acc.max_fa = new float[]{maxx, maxy, maxz, maxw};
+        acc.min_fa = new float[]{minx, miny, minz, minw};
+        return acc;
+    }
+
+    private void writeChannel(JsonWriter writer, int sampler, int node, String path) throws IOException {
+        writer.openObject();
+        writer.writeKeyValue("sampler", sampler);
+        writer.writeKey("target");
+        writer.openObject();
+            writer.writeKeyValue("node", node);
+            writer.writeKeyValue("path", path);
+        writer.closeObject();
         writer.closeObject();
     }
 
@@ -336,6 +465,24 @@ public class Gltf
         public Accessor joints0Accessor;
 
         public Accessor weights0Accessor;
+    }
+
+    private Accessor buildKeyframeTimestampAccessor(List<AnmData.KeyFrame> keyFrames) {
+
+        int numFrames = keyFrames.size();
+        var kfBuffer = createBuffer(numFrames*4);
+
+        int i=0;
+        float maxTs=0.0f;
+        for (var keyFrame: keyFrames){
+            i = writeFloat(kfBuffer.buffer, i, keyFrame.timestamp);
+            maxTs = keyFrame.timestamp;
+        }
+
+        var acc =  createAccessor(kfBuffer.id, 0, numFrames, "SCALAR", ComponentType.FLOAT);
+        acc.min_fa = new float[]{0.0f};
+        acc.max_fa = new float[]{maxTs};
+        return acc;
     }
 
     private Accessor buildInverseBindingMatrixAccessor(AnmData anmData)

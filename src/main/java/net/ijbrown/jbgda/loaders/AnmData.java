@@ -40,10 +40,21 @@ public class AnmData
     public List<Integer> jointParents;
 
     public String name;
+    public List<Pose> poses;
 
-    static class Pose {
-        int jointNo;
-        int frameNo;
+    public List<KeyFrame> keyFrames;
+
+    public static class KeyFrame {
+        public float timestamp;
+
+        public List<Vector3f> jointPositions;
+
+        public List<Quaternion> jointRotations;
+    }
+
+    public static class Pose {
+        public int jointNo;
+        public int frameNo;
         public Quaternion rotation;
         public Quaternion angularVelocity;
         public Vector3f position;
