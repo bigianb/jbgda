@@ -149,6 +149,11 @@ public class VifDecode
                 int vidx2 = vstart + (vstrip[i - 1] & 0xFF);
                 int vidx3 = vstart + (vstrip[i] & 0xFF);
 
+                // Check for degenerate triangles and skip them
+                if (vidx1 == vidx2 || vidx1 == vidx3 || vidx2 == vidx3){
+                    continue;
+                }
+
                 int uv1 = i - 2;
                 int uv2 = i - 1;
                 int uv3 = i;
