@@ -15,6 +15,9 @@
 */
 package net.ijbrown.jbgda.loaders;
 
+import org.joml.Vector3f;
+import org.tinylog.Logger;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -143,7 +146,7 @@ public class VifDecode
                 vstrip[stripIndxDest] = (chunk.extraVlocs[idx + 3] & 0x8000) | (vstrip[stripIndxSrc] & 0x1FF);
             }
 
-            int triIdx = 0;
+            boolean prevWasBackface=true;
             for (int i = 2; i < vstrip.length; ++i) {
                 int vidx1 = vstart + (vstrip[i - 2] & 0xFF);
                 int vidx2 = vstart + (vstrip[i - 1] & 0xFF);
@@ -151,29 +154,15 @@ public class VifDecode
 
                 // Check for degenerate triangles and skip them
                 if (vidx1 == vidx2 || vidx1 == vidx3 || vidx2 == vidx3){
+                    prevWasBackface = !prevWasBackface;
                     continue;
-                }
-
-                int uv1 = i - 2;
-                int uv2 = i - 1;
-                int uv3 = i;
-
-                // Flip the faces (indices 1 and 2) to keep the winding rule consistent.
-                if ((triIdx & 1) == 1) {
-                    int temp = uv1;
-                    uv1 = uv2;
-                    uv2 = temp;
-
-                    temp = vidx1;
-                    vidx1 = vidx2;
-                    vidx2 = temp;
                 }
 
                 if ((vstrip[i] & 0x8000) == 0) {
 
-                    var p1 = chunk.uvs.get(uv1);
-                    var p2 = chunk.uvs.get(uv2);
-                    var p3 = chunk.uvs.get(uv3);
+                    var p1 = chunk.uvs.get(i-2);
+                    var p2 = chunk.uvs.get(i-1);
+                    var p3 = chunk.uvs.get(i);
 
                     if (mesh.uvCoords.get(vidx1) != null && !mesh.uvCoords.get(vidx1).equals(p1))
                     {
@@ -238,15 +227,76 @@ public class VifDecode
                     mesh.uvCoords.set(vidx2, p2);
                     mesh.uvCoords.set(vidx3, p3);
 
-                    mesh.triangleIndices.add(vidx1);
-                    mesh.triangleIndices.add(vidx2);
-                    mesh.triangleIndices.add(vidx3);
+                    // Figure out if we need to change the winding order
+                    int correctWinding = isWoundCorrectly(mesh.vertices, mesh.normals, vidx1, vidx2, vidx3);
+                    if(correctWinding == 1) {
+                        mesh.triangleIndices.add(vidx1);
+                        mesh.triangleIndices.add(vidx2);
+                        mesh.triangleIndices.add(vidx3);
+                        prevWasBackface = false;
+                    } else if (correctWinding == 0){
+                        // Unknown so swap from the past one.
+                        if (prevWasBackface) {
+                            mesh.triangleIndices.add(vidx1);
+                            mesh.triangleIndices.add(vidx2);
+                            mesh.triangleIndices.add(vidx3);
+                            prevWasBackface = false;
+                        } else {
+                            mesh.triangleIndices.add(vidx3);
+                            mesh.triangleIndices.add(vidx2);
+                            mesh.triangleIndices.add(vidx1);
+                            prevWasBackface = true;
+                        }
+                    } else {
+                        mesh.triangleIndices.add(vidx3);
+                        mesh.triangleIndices.add(vidx2);
+                        mesh.triangleIndices.add(vidx1);
+                        prevWasBackface = true;
+                    }
+
+
                 }
-                ++triIdx;
             }
             vstart += numVertsInChunk;
         }
         return mesh;
+    }
+
+    // Check whether the winding for this face is correct.
+    // 1 is correct, -1 is incorrect and 0 is indeterminate.
+    private static int isWoundCorrectly(List<Vec3F> vertices, List<Vec3F> normals, int vidx1, int vidx2, int vidx3) {
+        // Find the expected normal for the triangle by taking the cross product of 2 edges
+        // Compare that with the average of the vector normals.
+
+        Vec3F vtx1 = vertices.get(vidx1);
+        Vec3F vtx2 = vertices.get(vidx2);
+        Vec3F vtx3 = vertices.get(vidx3);
+
+        Vector3f v1 = new Vector3f(vtx2.x - vtx1.x, vtx2.y - vtx1.y, vtx2.z - vtx1.z);
+        Vector3f v2 = new Vector3f(vtx3.x - vtx2.x, vtx3.y - vtx2.y, vtx3.z - vtx2.z);
+        v1.cross(v2);
+        v1.normalize();
+
+        // v1 is the expected normal
+
+        var normal1 = normals.get(vidx2);
+        var normal2 = normals.get(vidx2);
+        var normal3 = normals.get(vidx2);
+
+        var avgNormal = new Vector3f((normal1.x + normal2.x + normal3.x)/3.0f,
+                                    (normal1.y + normal2.y + normal3.y)/3.0f,
+                                    (normal1.z + normal2.z + normal3.z)/3.0f);
+
+        var agreement = v1.dot(avgNormal);
+        /*
+            if agreement > 0 then your mesh is wound counter-clockwise when looking at it against its normal in
+            a right-handed coordinate system, or clockwise if you're in a left-handed coordinate system.
+         */
+        int correct = agreement > 0 ? 1 : -1;
+        if (agreement > -0.1f && agreement < 0.1f) {
+            correct = 0;
+        }
+        return correct;
     }
 
     private static Vec3F normalise(Vec3F fn) {
