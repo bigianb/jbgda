@@ -49,14 +49,14 @@ public class AnmData
 
         public List<Vector3f> jointPositions;
 
-        public List<Quaternion> jointRotations;
+        public List<Quaternionf> jointRotations;
     }
 
     public static class Pose {
         public int jointNo;
         public int frameNo;
-        public Quaternion rotation;
-        public Quaternion angularVelocity;
+        public Quaternionf rotation;
+        public Quaternionf angularVelocity;
         public Vector3f position;
 
         public Vector3f velocity;

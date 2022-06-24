@@ -4,6 +4,7 @@ import net.ijbrown.jbgda.loaders.AnmData;
 import net.ijbrown.jbgda.loaders.Vec3F;
 import net.ijbrown.jbgda.loaders.VifDecode;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.io.IOException;
@@ -258,18 +259,18 @@ public class Gltf
         float maxz = -Float.MAX_VALUE;
         float maxw = -Float.MAX_VALUE;
         for (var keyFrame: keyFrames) {
-            var rot = keyFrame.jointRotations.get(jointNo);
-            i = writeFloat(buf.buffer, i, rot.a);
-            i = writeFloat(buf.buffer, i, rot.b);
-            i = writeFloat(buf.buffer, i, rot.c);
+            Quaternionf rot = keyFrame.jointRotations.get(jointNo);
+            i = writeFloat(buf.buffer, i, rot.x);
+            i = writeFloat(buf.buffer, i, rot.y);
+            i = writeFloat(buf.buffer, i, rot.z);
             i = writeFloat(buf.buffer, i, rot.w);
 
-            if (rot.a > maxx){ maxx = rot.a;}
-            if (rot.a < minx){ minx = rot.a;}
-            if (rot.b > maxy){ maxy = rot.b;}
-            if (rot.b < miny){ miny = rot.b;}
-            if (rot.c > maxz){ maxz = rot.c;}
-            if (rot.c < minz){ minz = rot.c;}
+            if (rot.x > maxx){ maxx = rot.x;}
+            if (rot.x < minx){ minx = rot.x;}
+            if (rot.y > maxy){ maxy = rot.y;}
+            if (rot.y < miny){ miny = rot.y;}
+            if (rot.z > maxz){ maxz = rot.z;}
+            if (rot.z < minz){ minz = rot.z;}
             if (rot.w > maxw){ maxw = rot.w;}
             if (rot.w < minw){ minw = rot.w;}
         }

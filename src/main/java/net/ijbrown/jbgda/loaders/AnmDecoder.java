@@ -1,5 +1,6 @@
 package net.ijbrown.jbgda.loaders;
 
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -48,8 +49,8 @@ public class AnmDecoder
             float d = (float) DataUtil.getLEShort(data, frameOffset + 12) / 4096.0f;
 
             var pose = new AnmData.Pose();
-            pose.rotation = new Quaternion(b, c, d, a);
-            pose.angularVelocity = new Quaternion(0, 0, 0, 0);
+            pose.rotation = new Quaternionf(b, c, d, a);
+            pose.angularVelocity = new Quaternionf(0, 0, 0, 0);
             pose.position = new Vector3f(x, y, z);
             pose.velocity = new Vector3f(0.0f, 0.0f, 0.0f);
             pose.jointNo = jointNo;
@@ -103,16 +104,16 @@ public class AnmDecoder
                     d = DataUtil.getLEShort(data, thisFramePoseOffset + 6);
                     thisFramePoseOffset += 8;
                 }
-                Quaternion angVel = new Quaternion(b, c, d, a);
+                Quaternionf angVel = new Quaternionf(b, c, d, a);
                 var prevAngVel = pose.angularVelocity;
                 var coeff = (totalFrame - curAngVelFrame[jointNo]) / 131072.0f;
-                Quaternion angDelta = new Quaternion(prevAngVel.a * coeff,
-                        prevAngVel.b * coeff,
-                        prevAngVel.c * coeff,
+                Quaternionf angDelta = new Quaternionf(prevAngVel.x * coeff,
+                        prevAngVel.y * coeff,
+                        prevAngVel.z * coeff,
                         prevAngVel.w * coeff);
-                pose.rotation = new Quaternion(pose.rotation.a + angDelta.a,
-                        pose.rotation.b + angDelta.b,
-                        pose.rotation.c + angDelta.c,
+                pose.rotation = new Quaternionf(pose.rotation.x + angDelta.x,
+                        pose.rotation.y + angDelta.y,
+                        pose.rotation.z + angDelta.z,
                         pose.rotation.w + angDelta.w);
                 pose.frameNo = totalFrame;
                 pose.angularVelocity = angVel;
@@ -170,7 +171,7 @@ public class AnmDecoder
         int numJoints = anmData.numJoints;
         for (int joint=0; joint<numJoints; joint++){
             thisKeyframe.jointPositions.add(new Vector3f(0.0f, 0.0f, 0.0f));
-            thisKeyframe.jointRotations.add(new Quaternion(0.0f, 0.0f, 0.0f, 1.0f));
+            thisKeyframe.jointRotations.add(new Quaternionf(0.0f, 0.0f, 0.0f, 1.0f));
         }
         for (var pose : anmData.poses){
             if (pose.frameNo > thisFrame){
@@ -185,6 +186,7 @@ public class AnmDecoder
 
                 thisKeyframe = nextKeyframe;
             }
+            pose.rotation.normalize();
             thisKeyframe.jointRotations.set(pose.jointNo, pose.rotation);
             thisKeyframe.jointPositions.set(pose.jointNo, pose.position);
         }
