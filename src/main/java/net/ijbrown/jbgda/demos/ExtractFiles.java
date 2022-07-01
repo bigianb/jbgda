@@ -25,7 +25,7 @@ public class ExtractFiles
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
         // that pattern (useful for debugging).
 
-        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "");
+        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "script");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
     }
 
@@ -33,7 +33,7 @@ public class ExtractFiles
         var config = new Config(gameType);
         var gameDataPath = FileSystems.getDefault().getPath(config.getDataDir());
 
-        var extractedPath = FileSystems.getDefault().getPath(gameDataPath.toString() + "_EXTRACTED");
+        var extractedPath = FileSystems.getDefault().getPath(gameDataPath + "_EXTRACTED");
 
         Files.createDirectories(extractedPath);
 
@@ -44,6 +44,7 @@ public class ExtractFiles
         }
         convertTexFiles(extractedPath, gameType, pattern);
         convertVifFiles(extractedPath, gameType, pattern);
+        convertScriptFiles(extractedPath, gameType, pattern);
     }
 
     public static class FileFinder extends SimpleFileVisitor<Path>
@@ -150,6 +151,34 @@ public class ExtractFiles
         var outPath = outDir.resolve(txtFilename);
         try (var writer = new FileWriter(outPath.toFile())){
             texLogger.log(texPath, writer);
+        }
+    }
+
+    private void convertScriptFiles(Path extractedPath, GameType gameType, String pattern) throws IOException {
+        ScriptDecode decoder = new ScriptDecode();
+
+        var fileFinder = new FileFinder(".scr");
+        Files.walkFileTree(extractedPath, fileFinder);
+
+        Logger.info("found {} scr files", fileFinder.found.size());
+        for (var file : fileFinder.found){
+            if (pattern == null || pattern.isEmpty() || file.toString().contains(pattern)) {
+                Logger.debug("Converting {}", file.toString());
+                try {
+                    decoder.read(file);
+                    String out = decoder.disassemble();
+
+                    var outDir = file.getParent();
+                    var filename = file.getFileName().toString();
+                    var txtFilename = filename.replace(".scr", "_scr.txt");
+                    var outPath = outDir.resolve(txtFilename);
+
+                    Files.writeString(outPath, out);
+
+                } catch (RuntimeException e) {
+                    Logger.info("Failed to convert {}", file.toString());
+                }
+            }
         }
     }
 

@@ -6,6 +6,7 @@ import net.ijbrown.jbgda.loaders.VifDecode;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.tinylog.Logger;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -568,8 +569,18 @@ public class Gltf
         float minT = 1.0f;
         i=0;
         for (var uv : mesh.uvCoords){
-            float s = (float)uv.u * sCoeff;
-            float t = (float)uv.v * tCoeff;
+            float s=0.0f;
+            float t = 0.0f;
+            if (uv != null) {
+                s = (float) uv.u * sCoeff;
+                t = (float) uv.v * tCoeff;
+            } else {
+                // Very occasionally (only in nebbish) do we see a vertex with no UV and so we need to protect
+                // against a null pointer exception in that case.
+                // I suspect this is an error in the decoding rather than an error in the data.
+                // The hands on nebbish look wrong.
+                Logger.warn("Found a vertex with no UV assignment");
+            }
             if (s > maxS){
                 maxS = s;
             }
