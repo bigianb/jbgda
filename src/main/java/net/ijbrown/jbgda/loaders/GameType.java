@@ -7,5 +7,6 @@ public enum GameType
 {
     DARK_ALLIANCE,
     CHAMPIONS_OF_NORRATH,
+    CHAMPIONS_RTA,
     JUSTICE_LEAGUE_HEROES
 }

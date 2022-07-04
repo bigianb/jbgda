@@ -27,6 +27,7 @@ public class ExtractFiles
 
         new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "script");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
+        //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, true, "");
     }
 
     private void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {

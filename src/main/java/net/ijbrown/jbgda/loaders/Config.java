@@ -20,17 +20,11 @@ public class Config {
             String home = System.getProperty("user.home");
             rootDir = home + "/ps2_games";
         }
-        switch(gameType)
-        {
-            case DARK_ALLIANCE:
-                rootDir += "/DARK_ALLIANCE";
-                break;
-            case CHAMPIONS_OF_NORRATH:
-                rootDir += "/CHAMPIONS_OF_NORRATH";
-                break;
-            case JUSTICE_LEAGUE_HEROES:
-                rootDir += "/JUSTICE_LEAGUE_HEROES";
-                break;
+        switch (gameType) {
+            case DARK_ALLIANCE -> rootDir += "/DARK_ALLIANCE";
+            case CHAMPIONS_OF_NORRATH -> rootDir += "/CHAMPIONS_OF_NORRATH";
+            case CHAMPIONS_RTA -> rootDir += "/RTA";
+            case JUSTICE_LEAGUE_HEROES -> rootDir += "/JUSTICE_LEAGUE_HEROES";
         }
 
         return rootDir;
@@ -39,17 +33,9 @@ public class Config {
     public String getDataDir()
     {
         String rootDir = getRootDir();
-        switch(gameType)
-        {
-            case DARK_ALLIANCE:
-                rootDir += "/BG/DATA";
-                break;
-            case CHAMPIONS_OF_NORRATH:
-                rootDir += "/BG/DATA";
-                break;
-            case JUSTICE_LEAGUE_HEROES:
-                rootDir += "/GAME/DATA";
-                break;
+        switch (gameType) {
+            case DARK_ALLIANCE, CHAMPIONS_OF_NORRATH, CHAMPIONS_RTA -> rootDir += "/BG/DATA";
+            case JUSTICE_LEAGUE_HEROES -> rootDir += "/GAME/DATA";
         }
         return rootDir;
     }
