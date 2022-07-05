@@ -25,7 +25,7 @@ public class ExtractFiles
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
         // that pattern (useful for debugging).
 
-        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "script");
+        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "objects");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
         //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, true, "");
     }
@@ -46,6 +46,7 @@ public class ExtractFiles
         convertTexFiles(extractedPath, gameType, pattern);
         convertVifFiles(extractedPath, gameType, pattern);
         convertScriptFiles(extractedPath, gameType, pattern);
+        convertObFiles(extractedPath, gameType, pattern);
     }
 
     public static class FileFinder extends SimpleFileVisitor<Path>
@@ -153,6 +154,30 @@ public class ExtractFiles
         try (var writer = new FileWriter(outPath.toFile())){
             texLogger.log(texPath, writer);
         }
+    }
+
+    private void convertObFiles(Path extractedPath, GameType gameType, String pattern) throws IOException {
+        var fileFinder = new FileFinder(".ob");
+        Files.walkFileTree(extractedPath, fileFinder);
+
+        Logger.info("found {} ob files", fileFinder.found.size());
+        for (var file : fileFinder.found){
+            if (pattern == null || pattern.isEmpty() || file.toString().contains(pattern)) {
+                Logger.debug("Converting {}", file.toString());
+                logObFile(file);
+            }
+        }
+    }
+
+    private void logObFile(Path path) throws IOException {
+        var filename = path.getFileName().toString();
+        var outDir = path.getParent();
+        var txtFilename = filename.replace(".ob", "_ob.txt");
+        var outPath = outDir.resolve(txtFilename);
+
+        byte[] obData = Files.readAllBytes(path);
+        var out =  ObLogger.log(obData);
+        Files.writeString(outPath, out);
     }
 
     private void convertScriptFiles(Path extractedPath, GameType gameType, String pattern) throws IOException {
