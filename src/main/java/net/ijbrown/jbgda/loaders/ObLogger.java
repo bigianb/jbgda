@@ -60,13 +60,24 @@ public class ObLogger
             sb.append("    Floats: ").append(f1).append(", ").append(f2).append(", ").append(f3).append("\r\n");
 
             int lenSoFar = 20;
-            while (lenSoFar < objLen) {
+            boolean done=false;
+            while (!done && lenSoFar < objLen) {
                 int i = DataUtil.getLEInt(fileData, objOffset + lenSoFar);
                 if (i > 0) {
                     sb.append("    prop: ").append(DataUtil.collectString(fileData, stringOffset + i)).append("\r\n");
+                } else {
+                    done=true;
                 }
                 lenSoFar += 4;
             }
+
+            if ((flags & 1) == 1){
+                // has init params
+                // never used in the data
+                int paramsOffset = (lenSoFar + 0x1f) & ~0x1f;
+                sb.append("init params at ").append(paramsOffset);
+            }
+
             sb.append("\r\n");
             objOffset += objLen;
         }
