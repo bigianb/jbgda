@@ -6,6 +6,7 @@ import org.lwjgl.vulkan.VkSamplerCreateInfo;
 import java.nio.LongBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class TextureSampler {
 
@@ -39,7 +40,7 @@ public class TextureSampler {
             }
 
             LongBuffer lp = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vkCreateSampler(device.getVkDevice(), samplerInfo, null, lp), "Failed to create sampler");
+            vkCheck(vkCreateSampler(device.getVkDevice(), samplerInfo, null, lp), "Failed to create sampler");
             vkSampler = lp.get(0);
         }
     }

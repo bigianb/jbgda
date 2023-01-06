@@ -42,6 +42,7 @@ public class EngineProperties {
 
         try (InputStream stream = EngineProperties.class.getResourceAsStream("/" + FILENAME)) {
             props.load(stream);
+            // Updates per second
             ups = Integer.parseInt(props.getOrDefault("ups", DEFAULT_UPS).toString());
             validate = Boolean.parseBoolean(props.getOrDefault("vkValidate", false).toString());
             physDeviceName = props.getProperty("physDeviceName");

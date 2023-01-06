@@ -6,13 +6,14 @@ import org.lwjgl.vulkan.VkFramebufferCreateInfo;
 import java.nio.LongBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class FrameBuffer {
 
     private final Device device;
     private final long vkFrameBuffer;
 
-    public FrameBuffer(Device device, int width, int height, LongBuffer pAttachments, long renderPass) {
+    public FrameBuffer(Device device, int width, int height, LongBuffer pAttachments, long renderPass, int layers) {
         this.device = device;
         try (MemoryStack stack = MemoryStack.stackPush()) {
             VkFramebufferCreateInfo fci = VkFramebufferCreateInfo.calloc(stack)
@@ -20,11 +21,11 @@ public class FrameBuffer {
                     .pAttachments(pAttachments)
                     .width(width)
                     .height(height)
-                    .layers(1)
+                    .layers(layers)
                     .renderPass(renderPass);
 
             LongBuffer lp = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vkCreateFramebuffer(device.getVkDevice(), fci, null, lp),
+            vkCheck(vkCreateFramebuffer(device.getVkDevice(), fci, null, lp),
                     "Failed to create FrameBuffer");
             vkFrameBuffer = lp.get(0);
         }

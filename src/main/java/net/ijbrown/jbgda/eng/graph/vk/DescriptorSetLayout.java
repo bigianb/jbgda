@@ -7,6 +7,7 @@ import org.tinylog.Logger;
 import java.nio.LongBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public abstract class DescriptorSetLayout {
 
@@ -56,7 +57,7 @@ public abstract class DescriptorSetLayout {
                         .pBindings(layoutBindings);
 
                 LongBuffer pSetLayout = stack.mallocLong(1);
-                VulkanUtils.vkCheck(vkCreateDescriptorSetLayout(device.getVkDevice(), layoutInfo, null, pSetLayout),
+                vkCheck(vkCreateDescriptorSetLayout(device.getVkDevice(), layoutInfo, null, pSetLayout),
                         "Failed to create descriptor set layout");
                 super.vkDescriptorLayout = pSetLayout.get(0);
             }

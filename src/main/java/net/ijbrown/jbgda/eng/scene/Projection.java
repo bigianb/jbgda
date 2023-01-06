@@ -1,7 +1,7 @@
 package net.ijbrown.jbgda.eng.scene;
 
-import net.ijbrown.jbgda.eng.EngineProperties;
 import org.joml.Matrix4f;
+import net.ijbrown.jbgda.eng.EngineProperties;
 
 public class Projection {
 

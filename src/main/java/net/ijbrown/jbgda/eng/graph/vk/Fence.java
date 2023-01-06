@@ -6,6 +6,7 @@ import org.lwjgl.vulkan.VkFenceCreateInfo;
 import java.nio.LongBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class Fence {
 
@@ -20,7 +21,7 @@ public class Fence {
                     .flags(signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0);
 
             LongBuffer lp = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vkCreateFence(device.getVkDevice(), fenceCreateInfo, null, lp),
+            vkCheck(vkCreateFence(device.getVkDevice(), fenceCreateInfo, null, lp),
                     "Failed to create semaphore");
             vkFence = lp.get(0);
         }

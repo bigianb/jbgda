@@ -7,6 +7,7 @@ import org.tinylog.Logger;
 import java.nio.LongBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class CommandPool {
 
@@ -24,7 +25,7 @@ public class CommandPool {
                     .queueFamilyIndex(queueFamilyIndex);
 
             LongBuffer lp = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vkCreateCommandPool(device.getVkDevice(), cmdPoolInfo, null, lp),
+            vkCheck(vkCreateCommandPool(device.getVkDevice(), cmdPoolInfo, null, lp),
                     "Failed to create command pool");
 
             vkCommandPool = lp.get(0);

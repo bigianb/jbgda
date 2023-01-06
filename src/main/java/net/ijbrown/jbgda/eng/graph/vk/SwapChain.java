@@ -9,6 +9,7 @@ import java.nio.*;
 import java.util.Arrays;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class SwapChain {
 
@@ -30,7 +31,7 @@ public class SwapChain {
 
             // Get surface capabilities
             VkSurfaceCapabilitiesKHR surfCapabilities = VkSurfaceCapabilitiesKHR.calloc(stack);
-            VulkanUtils.vkCheck(KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.getPhysicalDevice().getVkPhysicalDevice(),
+            vkCheck(KHRSurface.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.getPhysicalDevice().getVkPhysicalDevice(),
                     surface.getVkSurface(), surfCapabilities), "Failed to get surface capabilities");
 
             int numImages = calcNumImages(surfCapabilities, requestedImages);
@@ -58,7 +59,7 @@ public class SwapChain {
                 vkSwapchainCreateInfo.presentMode(KHRSurface.VK_PRESENT_MODE_IMMEDIATE_KHR);
             }
             LongBuffer lp = stack.mallocLong(1);
-            VulkanUtils.vkCheck(KHRSwapchain.vkCreateSwapchainKHR(device.getVkDevice(), vkSwapchainCreateInfo, null, lp),
+            vkCheck(KHRSwapchain.vkCreateSwapchainKHR(device.getVkDevice(), vkSwapchainCreateInfo, null, lp),
                     "Failed to create swap chain");
             vkSwapChain = lp.get(0);
 
@@ -109,7 +110,7 @@ public class SwapChain {
         try (MemoryStack stack = MemoryStack.stackPush()) {
 
             IntBuffer ip = stack.mallocInt(1);
-            VulkanUtils.vkCheck(KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.getVkPhysicalDevice(),
+            vkCheck(KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.getVkPhysicalDevice(),
                     surface.getVkSurface(), ip, null), "Failed to get the number surface formats");
             int numFormats = ip.get(0);
             if (numFormats <= 0) {
@@ -117,7 +118,7 @@ public class SwapChain {
             }
 
             VkSurfaceFormatKHR.Buffer surfaceFormats = VkSurfaceFormatKHR.calloc(numFormats, stack);
-            VulkanUtils.vkCheck(KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.getVkPhysicalDevice(),
+            vkCheck(KHRSurface.vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.getVkPhysicalDevice(),
                     surface.getVkSurface(), ip, surfaceFormats), "Failed to get surface formats");
 
             imageFormat = VK_FORMAT_B8G8R8A8_SRGB;
@@ -171,12 +172,12 @@ public class SwapChain {
         ImageView[] result;
 
         IntBuffer ip = stack.mallocInt(1);
-        VulkanUtils.vkCheck(KHRSwapchain.vkGetSwapchainImagesKHR(device.getVkDevice(), swapChain, ip, null),
+        vkCheck(KHRSwapchain.vkGetSwapchainImagesKHR(device.getVkDevice(), swapChain, ip, null),
                 "Failed to get number of surface images");
         int numImages = ip.get(0);
 
         LongBuffer swapChainImages = stack.mallocLong(numImages);
-        VulkanUtils.vkCheck(KHRSwapchain.vkGetSwapchainImagesKHR(device.getVkDevice(), swapChain, ip, swapChainImages),
+        vkCheck(KHRSwapchain.vkGetSwapchainImagesKHR(device.getVkDevice(), swapChain, ip, swapChainImages),
                 "Failed to get surface images");
 
         result = new ImageView[numImages];

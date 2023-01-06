@@ -9,6 +9,7 @@ import java.nio.*;
 import java.nio.file.Files;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class ShaderProgram {
 
@@ -47,7 +48,7 @@ public class ShaderProgram {
                     .pCode(pCode);
 
             LongBuffer lp = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vkCreateShaderModule(device.getVkDevice(), moduleCreateInfo, null, lp),
+            vkCheck(vkCreateShaderModule(device.getVkDevice(), moduleCreateInfo, null, lp),
                     "Failed to create shader module");
 
             return lp.get(0);

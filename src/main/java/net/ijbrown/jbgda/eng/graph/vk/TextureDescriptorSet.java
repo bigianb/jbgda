@@ -6,6 +6,7 @@ import org.lwjgl.vulkan.*;
 import java.nio.LongBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class TextureDescriptorSet extends DescriptorSet {
 
@@ -21,7 +22,7 @@ public class TextureDescriptorSet extends DescriptorSet {
                     .pSetLayouts(pDescriptorSetLayout);
 
             LongBuffer pDescriptorSet = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vkAllocateDescriptorSets(device.getVkDevice(), allocInfo, pDescriptorSet),
+            vkCheck(vkAllocateDescriptorSets(device.getVkDevice(), allocInfo, pDescriptorSet),
                     "Failed to create descriptor set");
             vkDescriptorSet = pDescriptorSet.get(0);
 

@@ -9,6 +9,7 @@ import java.nio.IntBuffer;
 import java.util.*;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class PhysicalDevice {
 
@@ -31,10 +32,10 @@ public class PhysicalDevice {
             vkGetPhysicalDeviceProperties(vkPhysicalDevice, vkPhysicalDeviceProperties);
 
             // Get device extensions
-            VulkanUtils.vkCheck(vkEnumerateDeviceExtensionProperties(vkPhysicalDevice, (String) null, intBuffer, null),
+            vkCheck(vkEnumerateDeviceExtensionProperties(vkPhysicalDevice, (String) null, intBuffer, null),
                     "Failed to get number of device extension properties");
             vkDeviceExtensions = VkExtensionProperties.calloc(intBuffer.get(0));
-            VulkanUtils.vkCheck(vkEnumerateDeviceExtensionProperties(vkPhysicalDevice, (String) null, intBuffer, vkDeviceExtensions),
+            vkCheck(vkEnumerateDeviceExtensionProperties(vkPhysicalDevice, (String) null, intBuffer, vkDeviceExtensions),
                     "Failed to get extension properties");
 
             suportedSampleCount = calSupportedSampleCount(vkPhysicalDeviceProperties);
@@ -105,14 +106,14 @@ public class PhysicalDevice {
         PointerBuffer pPhysicalDevices;
         // Get number of physical devices
         IntBuffer intBuffer = stack.mallocInt(1);
-        VulkanUtils.vkCheck(vkEnumeratePhysicalDevices(instance.getVkInstance(), intBuffer, null),
+        vkCheck(vkEnumeratePhysicalDevices(instance.getVkInstance(), intBuffer, null),
                 "Failed to get number of physical devices");
         int numDevices = intBuffer.get(0);
         Logger.debug("Detected {} physical device(s)", numDevices);
 
         // Populate physical devices list pointer
         pPhysicalDevices = stack.mallocPointer(numDevices);
-        VulkanUtils.vkCheck(vkEnumeratePhysicalDevices(instance.getVkInstance(), intBuffer, pPhysicalDevices),
+        vkCheck(vkEnumeratePhysicalDevices(instance.getVkInstance(), intBuffer, pPhysicalDevices),
                 "Failed to get physical devices");
         return pPhysicalDevices;
     }

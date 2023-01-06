@@ -7,6 +7,7 @@ import org.tinylog.Logger;
 import java.nio.LongBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class PipelineCache {
 
@@ -21,7 +22,7 @@ public class PipelineCache {
                     .sType(VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
 
             LongBuffer lp = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vkCreatePipelineCache(device.getVkDevice(), createInfo, null, lp),
+            vkCheck(vkCreatePipelineCache(device.getVkDevice(), createInfo, null, lp),
                     "Error creating pipeline cache");
             vkPipelineCache = lp.get(0);
         }

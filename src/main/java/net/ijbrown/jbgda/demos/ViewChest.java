@@ -21,7 +21,7 @@ import static org.lwjgl.vulkan.VK10.VK_FORMAT_R8G8B8A8_SRGB;
 
 public class ViewChest implements IAppLogic {
 
-    private static final float MOUSE_SENSITIVITY = 0.1f;
+    private static final float MOUSE_SENSITIVITY = 0.5f;
     private static final float MOVEMENT_SPEED = 10.0f / 1E9f;
 
     private float angleInc;
@@ -110,6 +110,8 @@ public class ViewChest implements IAppLogic {
     {
         List<Float> vertices = vec3ToFloats(mesh.vertices);
         List<Float> normals  = vec3ToFloats(mesh.normals);
+        var tangents = new ArrayList<>(Collections.nCopies(normals.size(), 0.0f));
+        var bitangents = new ArrayList<>(Collections.nCopies(normals.size(), 0.0f));
 
         float texWf = (float)texW * 16.0f;
         float texHf = (float)texH * 16.0f;
@@ -123,6 +125,7 @@ public class ViewChest implements IAppLogic {
         List<Integer> indices = mesh.triangleIndices;
         int materialIdx = 0; //aiMesh.mMaterialIndex();
         return new ModelData.MeshData(EngineUtils.listFloatToArray(vertices), EngineUtils.listFloatToArray(normals),
+                EngineUtils.listFloatToArray(tangents), EngineUtils.listFloatToArray(bitangents),
                  EngineUtils.listFloatToArray(textCoords), EngineUtils.listIntToArray(indices), materialIdx);
 
     }
@@ -146,10 +149,14 @@ public class ViewChest implements IAppLogic {
     private ModelData meshToModelData(String modelId, List<VifDecode.Mesh> meshes, TexDecode.DecodedTex texData, Render render)
     {
         var device = render.getDevice();
+        var textureCache = render.getTextureCache();
+
         var texture = buildTexture(device, texData);
+        var texPath = modelId + "_tex";
+        textureCache.addTexture(texture, texPath);
 
         List<ModelData.Material> materialList = new ArrayList<>();
-        ModelData.Material material = new ModelData.Material(texture, ModelData.Material.DEFAULT_COLOR);
+        ModelData.Material material = new ModelData.Material(texPath, null, null, ModelData.Material.DEFAULT_COLOR, 0.0f, 0.0f);
         materialList.add(material);
 
         List<ModelData.MeshData> meshDataList = new ArrayList<>();

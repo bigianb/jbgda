@@ -25,7 +25,7 @@ public class Texture {
         Logger.debug("Creating texture [{}]", fileName);
         recordedTransition = false;
         this.fileName = fileName;
-        ByteBuffer buf;
+        ByteBuffer buf = null;
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer w = stack.mallocInt(1);
             IntBuffer h = stack.mallocInt(1);
@@ -42,15 +42,16 @@ public class Texture {
             mipLevels = (int) Math.floor(log2(Math.min(width, height))) + 1;
 
             createTextureResources(device, buf, imageFormat);
+        } finally {
+            if (buf != null) {
+                stbi_image_free(buf);
+            }
         }
-
-        stbi_image_free(buf);
     }
 
     public Texture(Device device, ByteBuffer buf, int width, int height, int imageFormat) {
         this.width = width;
         this.height = height;
-        this.fileName = "x"+width+"_"+height;
         mipLevels = 1;
 
         createTextureResources(device, buf, imageFormat);
@@ -127,6 +128,87 @@ public class Texture {
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, region);
     }
 
+    private void recordGenerateMipMaps(MemoryStack stack, CommandBuffer cmd) {
+        VkImageSubresourceRange subResourceRange = VkImageSubresourceRange.calloc(stack)
+                .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                .baseArrayLayer(0)
+                .levelCount(1)
+                .layerCount(1);
+
+        VkImageMemoryBarrier.Buffer barrier = VkImageMemoryBarrier.calloc(1, stack)
+                .sType(VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER)
+                .image(image.getVkImage())
+                .srcQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                .dstQueueFamilyIndex(VK_QUEUE_FAMILY_IGNORED)
+                .subresourceRange(subResourceRange);
+
+        int mipWidth = width;
+        int mipHeight = height;
+
+        for (int i = 1; i < mipLevels; i++) {
+            subResourceRange.baseMipLevel(i - 1);
+            barrier.subresourceRange(subResourceRange)
+                    .oldLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+                    .newLayout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+                    .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                    .dstAccessMask(VK_ACCESS_TRANSFER_READ_BIT);
+
+            vkCmdPipelineBarrier(cmd.getVkCommandBuffer(),
+                    VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
+                    null, null, barrier);
+
+            int auxi = i;
+            VkOffset3D srcOffset0 = VkOffset3D.calloc(stack).x(0).y(0).z(0);
+            VkOffset3D srcOffset1 = VkOffset3D.calloc(stack).x(mipWidth).y(mipHeight).z(1);
+            VkOffset3D dstOffset0 = VkOffset3D.calloc(stack).x(0).y(0).z(0);
+            VkOffset3D dstOffset1 = VkOffset3D.calloc(stack)
+                    .x(mipWidth > 1 ? mipWidth / 2 : 1).y(mipHeight > 1 ? mipHeight / 2 : 1).z(1);
+            VkImageBlit.Buffer blit = VkImageBlit.calloc(1, stack)
+                    .srcOffsets(0, srcOffset0)
+                    .srcOffsets(1, srcOffset1)
+                    .srcSubresource(it -> it
+                            .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                            .mipLevel(auxi - 1)
+                            .baseArrayLayer(0)
+                            .layerCount(1))
+                    .dstOffsets(0, dstOffset0)
+                    .dstOffsets(1, dstOffset1)
+                    .dstSubresource(it -> it
+                            .aspectMask(VK_IMAGE_ASPECT_COLOR_BIT)
+                            .mipLevel(auxi)
+                            .baseArrayLayer(0)
+                            .layerCount(1));
+
+            vkCmdBlitImage(cmd.getVkCommandBuffer(),
+                    image.getVkImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    image.getVkImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    blit, VK_FILTER_LINEAR);
+
+            barrier.oldLayout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
+                    .newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+                    .srcAccessMask(VK_ACCESS_TRANSFER_READ_BIT)
+                    .dstAccessMask(VK_ACCESS_SHADER_READ_BIT);
+
+            vkCmdPipelineBarrier(cmd.getVkCommandBuffer(),
+                    VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+                    null, null, barrier);
+
+            if (mipWidth > 1) mipWidth /= 2;
+            if (mipHeight > 1) mipHeight /= 2;
+        }
+
+        barrier.subresourceRange(it -> it
+                        .baseMipLevel(mipLevels - 1))
+                .oldLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+                .newLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+                .srcAccessMask(VK_ACCESS_TRANSFER_WRITE_BIT)
+                .dstAccessMask(VK_ACCESS_SHADER_READ_BIT);
+
+        vkCmdPipelineBarrier(cmd.getVkCommandBuffer(),
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+                null, null, barrier);
+    }
+
     private void recordImageTransition(MemoryStack stack, CommandBuffer cmd, int oldLayout, int newLayout) {
 
         VkImageMemoryBarrier.Buffer barrier = VkImageMemoryBarrier.calloc(1, stack)
@@ -175,7 +257,7 @@ public class Texture {
             try (MemoryStack stack = MemoryStack.stackPush()) {
                 recordImageTransition(stack, cmd, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
                 recordCopyBuffer(stack, cmd, stgBuffer);
-                recordImageTransition(stack, cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+                recordGenerateMipMaps(stack, cmd);
             }
         } else {
             Logger.debug("Texture [{}] has already been transitioned", fileName);

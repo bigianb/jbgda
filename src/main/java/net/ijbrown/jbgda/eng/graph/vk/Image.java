@@ -6,6 +6,7 @@ import org.lwjgl.vulkan.*;
 import java.nio.LongBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class Image {
 
@@ -39,7 +40,7 @@ public class Image {
                     .usage(imageData.usage);
 
             LongBuffer lp = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vkCreateImage(device.getVkDevice(), imageCreateInfo, null, lp), "Failed to create image");
+            vkCheck(vkCreateImage(device.getVkDevice(), imageCreateInfo, null, lp), "Failed to create image");
             vkImage = lp.get(0);
 
             // Get memory requirements for this object
@@ -54,11 +55,11 @@ public class Image {
                             memReqs.memoryTypeBits(), 0));
 
             // Allocate memory
-            VulkanUtils.vkCheck(vkAllocateMemory(device.getVkDevice(), memAlloc, null, lp), "Failed to allocate memory");
+            vkCheck(vkAllocateMemory(device.getVkDevice(), memAlloc, null, lp), "Failed to allocate memory");
             vkMemory = lp.get(0);
 
             // Bind memory
-            VulkanUtils.vkCheck(vkBindImageMemory(device.getVkDevice(), vkImage, vkMemory, 0),
+            vkCheck(vkBindImageMemory(device.getVkDevice(), vkImage, vkMemory, 0),
                     "Failed to bind image memory");
         }
     }

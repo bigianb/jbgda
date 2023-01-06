@@ -6,6 +6,7 @@ import org.lwjgl.vulkan.*;
 import org.tinylog.Logger;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class CommandBuffer {
 
@@ -26,7 +27,7 @@ public class CommandBuffer {
                     .level(primary ? VK_COMMAND_BUFFER_LEVEL_PRIMARY : VK_COMMAND_BUFFER_LEVEL_SECONDARY)
                     .commandBufferCount(1);
             PointerBuffer pb = stack.mallocPointer(1);
-            VulkanUtils.vkCheck(vkAllocateCommandBuffers(vkDevice, cmdBufAllocateInfo, pb),
+            vkCheck(vkAllocateCommandBuffers(vkDevice, cmdBufAllocateInfo, pb),
                     "Failed to allocate render command buffer");
 
             vkCommandBuffer = new VkCommandBuffer(pb.get(0), vkDevice);
@@ -40,7 +41,7 @@ public class CommandBuffer {
             if (oneTimeSubmit) {
                 cmdBufInfo.flags(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
             }
-            VulkanUtils.vkCheck(vkBeginCommandBuffer(vkCommandBuffer, cmdBufInfo), "Failed to begin command buffer");
+            vkCheck(vkBeginCommandBuffer(vkCommandBuffer, cmdBufInfo), "Failed to begin command buffer");
         }
     }
 
@@ -51,7 +52,7 @@ public class CommandBuffer {
     }
 
     public void endRecording() {
-        VulkanUtils.vkCheck(vkEndCommandBuffer(vkCommandBuffer), "Failed to end command buffer");
+        vkCheck(vkEndCommandBuffer(vkCommandBuffer), "Failed to end command buffer");
     }
 
     public VkCommandBuffer getVkCommandBuffer() {

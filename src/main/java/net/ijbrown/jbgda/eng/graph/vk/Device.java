@@ -8,6 +8,7 @@ import org.tinylog.Logger;
 import java.nio.FloatBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class Device {
 
@@ -34,6 +35,7 @@ public class Device {
                 features.samplerAnisotropy(true);
             }
             features.depthClamp(supportedFeatures.depthClamp());
+//            features.geometryShader(true);    // fails on mac
 
             // Enable all the queue families
             VkQueueFamilyProperties.Buffer queuePropsBuff = physicalDevice.getVkQueueFamilyProps();
@@ -54,7 +56,7 @@ public class Device {
                     .pQueueCreateInfos(queueCreationInfoBuf);
 
             PointerBuffer pp = stack.mallocPointer(1);
-            VulkanUtils.vkCheck(vkCreateDevice(physicalDevice.getVkPhysicalDevice(), deviceCreateInfo, null, pp),
+            vkCheck(vkCreateDevice(physicalDevice.getVkPhysicalDevice(), deviceCreateInfo, null, pp),
                     "Failed to create device");
             vkDevice = new VkDevice(pp.get(0), physicalDevice.getVkPhysicalDevice(), deviceCreateInfo);
 

@@ -1,9 +1,11 @@
-package net.ijbrown.jbgda.eng.graph;
+package net.ijbrown.jbgda.eng.graph.geometry;
 
 import org.lwjgl.system.*;
 import org.lwjgl.util.shaderc.Shaderc;
 import org.lwjgl.vulkan.*;
 import net.ijbrown.jbgda.eng.EngineProperties;
+import net.ijbrown.jbgda.eng.graph.VulkanModel;
+import net.ijbrown.jbgda.eng.graph.animation.AnimationComputeActivity;
 import net.ijbrown.jbgda.eng.graph.vk.Queue;
 import net.ijbrown.jbgda.eng.graph.vk.*;
 import net.ijbrown.jbgda.eng.scene.*;
@@ -13,33 +15,32 @@ import java.util.*;
 
 import static org.lwjgl.vulkan.VK11.*;
 
-public class ForwardRenderActivity {
+public class GeometryRenderActivity {
 
-    private static final String FRAGMENT_SHADER_FILE_GLSL = "resources/shaders/fwd_fragment.glsl";
-    private static final String FRAGMENT_SHADER_FILE_SPV = FRAGMENT_SHADER_FILE_GLSL + ".spv";
-    private static final String VERTEX_SHADER_FILE_GLSL = "resources/shaders/fwd_vertex.glsl";
-    private static final String VERTEX_SHADER_FILE_SPV = VERTEX_SHADER_FILE_GLSL + ".spv";
+    private static final String GEOMETRY_FRAGMENT_SHADER_FILE_GLSL = "resources/shaders/geometry_fragment.glsl";
+    private static final String GEOMETRY_FRAGMENT_SHADER_FILE_SPV = GEOMETRY_FRAGMENT_SHADER_FILE_GLSL + ".spv";
+    private static final String GEOMETRY_VERTEX_SHADER_FILE_GLSL = "resources/shaders/geometry_vertex.glsl";
+    private static final String GEOMETRY_VERTEX_SHADER_FILE_SPV = GEOMETRY_VERTEX_SHADER_FILE_GLSL + ".spv";
 
     private final Device device;
-    private final CommandBuffer[] commandBuffers;
-    private final Fence[] fences;
-    private final ShaderProgram fwdShaderProgram;
+    private final GeometryFrameBuffer geometryFrameBuffer;
     private final int materialSize;
-    private final Pipeline pipeLine;
+    private final MemoryBarrier memoryBarrier;
     private final PipelineCache pipelineCache;
-    private final SwapChainRenderPass renderPass;
     private final Scene scene;
 
-    private Attachment[] depthAttachments;
+    private CommandBuffer[] commandBuffers;
     private DescriptorPool descriptorPool;
-    private DescriptorSetLayout[] descriptorSetLayouts;
     private Map<String, TextureDescriptorSet> descriptorSetMap;
-    private FrameBuffer[] frameBuffers;
+    private Fence[] fences;
+    private DescriptorSetLayout[] geometryDescriptorSetLayouts;
     private DescriptorSetLayout.DynUniformDescriptorSetLayout materialDescriptorSetLayout;
     private VulkanBuffer materialsBuffer;
     private DescriptorSet.DynUniformDescriptorSet materialsDescriptorSet;
+    private Pipeline pipeLine;
     private DescriptorSet.UniformDescriptorSet projMatrixDescriptorSet;
     private VulkanBuffer projMatrixUniform;
+    private ShaderProgram shaderProgram;
     private SwapChain swapChain;
     private DescriptorSetLayout.SamplerDescriptorSetLayout textureDescriptorSetLayout;
     private TextureSampler textureSampler;
@@ -47,46 +48,36 @@ public class ForwardRenderActivity {
     private VulkanBuffer[] viewMatricesBuffer;
     private DescriptorSet.UniformDescriptorSet[] viewMatricesDescriptorSets;
 
-    public ForwardRenderActivity(SwapChain swapChain, CommandPool commandPool, PipelineCache pipelineCache, Scene scene) {
+    public GeometryRenderActivity(SwapChain swapChain, CommandPool commandPool, PipelineCache pipelineCache, Scene scene) {
         this.swapChain = swapChain;
         this.pipelineCache = pipelineCache;
         this.scene = scene;
         device = swapChain.getDevice();
-
-        int numImages = swapChain.getImageViews().length;
+        geometryFrameBuffer = new GeometryFrameBuffer(swapChain);
+        int numImages = swapChain.getNumImages();
         materialSize = calcMaterialsUniformSize();
-        createDepthImages();
-        renderPass = new SwapChainRenderPass(swapChain, depthAttachments[0].getImage().getFormat());
-        createFrameBuffers();
-
-        EngineProperties engineProperties = EngineProperties.getInstance();
-        if (engineProperties.isShaderRecompilation()) {
-            ShaderCompiler.compileShaderIfChanged(VERTEX_SHADER_FILE_GLSL, Shaderc.shaderc_glsl_vertex_shader);
-            ShaderCompiler.compileShaderIfChanged(FRAGMENT_SHADER_FILE_GLSL, Shaderc.shaderc_glsl_fragment_shader);
-        }
-        fwdShaderProgram = new ShaderProgram(device, new ShaderProgram.ShaderModuleData[]
-                {
-                        new ShaderProgram.ShaderModuleData(VK_SHADER_STAGE_VERTEX_BIT, VERTEX_SHADER_FILE_SPV),
-                        new ShaderProgram.ShaderModuleData(VK_SHADER_STAGE_FRAGMENT_BIT, FRAGMENT_SHADER_FILE_SPV),
-                });
-
+        createShaders();
+        createDescriptorPool();
         createDescriptorSets(numImages);
-
-        Pipeline.PipeLineCreationInfo pipeLineCreationInfo = new Pipeline.PipeLineCreationInfo(
-                renderPass.getVkRenderPass(), fwdShaderProgram, 1, true, true, GraphConstants.MAT4X4_SIZE,
-                new VertexBufferStructure(), descriptorSetLayouts);
-        pipeLine = new Pipeline(this.pipelineCache, pipeLineCreationInfo);
-        pipeLineCreationInfo.cleanup();
-
-        commandBuffers = new CommandBuffer[numImages];
-        fences = new Fence[numImages];
-
-        for (int i = 0; i < numImages; i++) {
-            commandBuffers[i] = new CommandBuffer(commandPool, true, false);
-            fences[i] = new Fence(device, true);
-        }
-
+        createPipeline();
+        createCommandBuffers(commandPool, numImages);
         VulkanUtils.copyMatrixToBuffer(projMatrixUniform, scene.getProjection().getProjectionMatrix());
+        memoryBarrier = new MemoryBarrier(VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT);
+    }
+
+    public CommandBuffer beginRecording() {
+        int idx = swapChain.getCurrentFrame();
+
+        Fence fence = fences[idx];
+        CommandBuffer commandBuffer = commandBuffers[idx];
+
+        fence.fenceWait();
+        fence.reset();
+
+        commandBuffer.reset();
+        commandBuffer.beginRecording();
+
+        return commandBuffer;
     }
 
     private int calcMaterialsUniformSize() {
@@ -97,50 +88,54 @@ public class ForwardRenderActivity {
     }
 
     public void cleanup() {
+        pipeLine.cleanup();
         materialsBuffer.cleanup();
         Arrays.stream(viewMatricesBuffer).forEach(VulkanBuffer::cleanup);
         projMatrixUniform.cleanup();
         textureSampler.cleanup();
-        descriptorPool.cleanup();
-        pipeLine.cleanup();
-        uniformDescriptorSetLayout.cleanup();
-        textureDescriptorSetLayout.cleanup();
         materialDescriptorSetLayout.cleanup();
-        Arrays.stream(depthAttachments).forEach(Attachment::cleanup);
-        fwdShaderProgram.cleanup();
-        Arrays.stream(frameBuffers).forEach(FrameBuffer::cleanup);
-        renderPass.cleanup();
+        textureDescriptorSetLayout.cleanup();
+        uniformDescriptorSetLayout.cleanup();
+        descriptorPool.cleanup();
+        shaderProgram.cleanup();
+        geometryFrameBuffer.cleanup();
         Arrays.stream(commandBuffers).forEach(CommandBuffer::cleanup);
         Arrays.stream(fences).forEach(Fence::cleanup);
     }
 
-    private void createDepthImages() {
-        int numImages = swapChain.getNumImages();
-        VkExtent2D swapChainExtent = swapChain.getSwapChainExtent();
-        depthAttachments = new Attachment[numImages];
+    private void createCommandBuffers(CommandPool commandPool, int numImages) {
+        commandBuffers = new CommandBuffer[numImages];
+        fences = new Fence[numImages];
+
         for (int i = 0; i < numImages; i++) {
-            depthAttachments[i] = new Attachment(device, swapChainExtent.width(), swapChainExtent.height(),
-                    VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+            commandBuffers[i] = new CommandBuffer(commandPool, true, false);
+            fences[i] = new Fence(device, true);
         }
+    }
+
+    private void createDescriptorPool() {
+        EngineProperties engineProps = EngineProperties.getInstance();
+        List<DescriptorPool.DescriptorTypeCount> descriptorTypeCounts = new ArrayList<>();
+        descriptorTypeCounts.add(new DescriptorPool.DescriptorTypeCount(swapChain.getNumImages() + 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER));
+        descriptorTypeCounts.add(new DescriptorPool.DescriptorTypeCount(engineProps.getMaxMaterials() * 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER));
+        descriptorTypeCounts.add(new DescriptorPool.DescriptorTypeCount(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC));
+        descriptorPool = new DescriptorPool(device, descriptorTypeCounts);
     }
 
     private void createDescriptorSets(int numImages) {
         uniformDescriptorSetLayout = new DescriptorSetLayout.UniformDescriptorSetLayout(device, 0, VK_SHADER_STAGE_VERTEX_BIT);
         textureDescriptorSetLayout = new DescriptorSetLayout.SamplerDescriptorSetLayout(device, 0, VK_SHADER_STAGE_FRAGMENT_BIT);
         materialDescriptorSetLayout = new DescriptorSetLayout.DynUniformDescriptorSetLayout(device, 0, VK_SHADER_STAGE_FRAGMENT_BIT);
-        descriptorSetLayouts = new DescriptorSetLayout[]{
+        geometryDescriptorSetLayouts = new DescriptorSetLayout[]{
                 uniformDescriptorSetLayout,
                 uniformDescriptorSetLayout,
+                textureDescriptorSetLayout,
+                textureDescriptorSetLayout,
                 textureDescriptorSetLayout,
                 materialDescriptorSetLayout,
         };
 
         EngineProperties engineProps = EngineProperties.getInstance();
-        List<DescriptorPool.DescriptorTypeCount> descriptorTypeCounts = new ArrayList<>();
-        descriptorTypeCounts.add(new DescriptorPool.DescriptorTypeCount(swapChain.getNumImages() + 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER));
-        descriptorTypeCounts.add(new DescriptorPool.DescriptorTypeCount(engineProps.getMaxMaterials(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER));
-        descriptorTypeCounts.add(new DescriptorPool.DescriptorTypeCount(1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC));
-        descriptorPool = new DescriptorPool(device, descriptorTypeCounts);
         descriptorSetMap = new HashMap<>();
         textureSampler = new TextureSampler(device, 1);
         projMatrixUniform = new VulkanBuffer(device, GraphConstants.MAT4X4_SIZE, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -149,8 +144,8 @@ public class ForwardRenderActivity {
 
         viewMatricesDescriptorSets = new DescriptorSet.UniformDescriptorSet[numImages];
         viewMatricesBuffer = new VulkanBuffer[numImages];
-        materialsBuffer = new VulkanBuffer(device, (long) materialSize * engineProps.getMaxMaterials(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+        materialsBuffer = new VulkanBuffer(device, (long) materialSize * engineProps.getMaxMaterials(),
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
         materialsDescriptorSet = new DescriptorSet.DynUniformDescriptorSet(descriptorPool, materialDescriptorSetLayout,
                 materialsBuffer, 0, materialSize);
         for (int i = 0; i < numImages; i++) {
@@ -161,51 +156,68 @@ public class ForwardRenderActivity {
         }
     }
 
-    private void createFrameBuffers() {
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            VkExtent2D swapChainExtent = swapChain.getSwapChainExtent();
-            ImageView[] imageViews = swapChain.getImageViews();
-            int numImages = imageViews.length;
-
-            LongBuffer pAttachments = stack.mallocLong(2);
-            frameBuffers = new FrameBuffer[numImages];
-            for (int i = 0; i < numImages; i++) {
-                pAttachments.put(0, imageViews[i].getVkImageView());
-                pAttachments.put(1, depthAttachments[i].getImageView().getVkImageView());
-                frameBuffers[i] = new FrameBuffer(device, swapChainExtent.width(), swapChainExtent.height(),
-                        pAttachments, renderPass.getVkRenderPass());
-            }
-        }
+    private void createPipeline() {
+        Pipeline.PipeLineCreationInfo pipeLineCreationInfo = new Pipeline.PipeLineCreationInfo(
+                geometryFrameBuffer.getRenderPass().getVkRenderPass(), shaderProgram, GeometryAttachments.NUMBER_COLOR_ATTACHMENTS,
+                true, true, GraphConstants.MAT4X4_SIZE,
+                new VertexBufferStructure(), geometryDescriptorSetLayouts);
+        pipeLine = new Pipeline(pipelineCache, pipeLineCreationInfo);
+        pipeLineCreationInfo.cleanup();
     }
 
-    public void recordCommandBuffer(List<VulkanModel> vulkanModelList) {
+    private void createShaders() {
+        EngineProperties engineProperties = EngineProperties.getInstance();
+        if (engineProperties.isShaderRecompilation()) {
+            ShaderCompiler.compileShaderIfChanged(GEOMETRY_VERTEX_SHADER_FILE_GLSL, Shaderc.shaderc_glsl_vertex_shader);
+            ShaderCompiler.compileShaderIfChanged(GEOMETRY_FRAGMENT_SHADER_FILE_GLSL, Shaderc.shaderc_glsl_fragment_shader);
+        }
+        shaderProgram = new ShaderProgram(device, new ShaderProgram.ShaderModuleData[]
+                {
+                        new ShaderProgram.ShaderModuleData(VK_SHADER_STAGE_VERTEX_BIT, GEOMETRY_VERTEX_SHADER_FILE_SPV),
+                        new ShaderProgram.ShaderModuleData(VK_SHADER_STAGE_FRAGMENT_BIT, GEOMETRY_FRAGMENT_SHADER_FILE_SPV),
+                });
+    }
+
+    public void endRecording(CommandBuffer commandBuffer) {
+        commandBuffer.endRecording();
+    }
+
+    public List<Attachment> getAttachments() {
+        return geometryFrameBuffer.geometryAttachments().getAttachments();
+    }
+
+    public void recordCommandBuffer(CommandBuffer commandBuffer, List<VulkanModel> vulkanModelList,
+                                    Map<String, List<AnimationComputeActivity.EntityAnimationBuffer>> entityAnimationsBuffers) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             VkExtent2D swapChainExtent = swapChain.getSwapChainExtent();
             int width = swapChainExtent.width();
             int height = swapChainExtent.height();
             int idx = swapChain.getCurrentFrame();
 
-            Fence fence = fences[idx];
-            CommandBuffer commandBuffer = commandBuffers[idx];
-            FrameBuffer frameBuffer = frameBuffers[idx];
-
-            fence.fenceWait();
-            fence.reset();
-
-            commandBuffer.reset();
-            VkClearValue.Buffer clearValues = VkClearValue.calloc(2, stack);
-            clearValues.apply(0, v -> v.color().float32(0, 0.5f).float32(1, 0.7f).float32(2, 0.9f).float32(3, 1));
-            clearValues.apply(1, v -> v.depthStencil().depth(1.0f));
+            FrameBuffer frameBuffer = geometryFrameBuffer.getFrameBuffer();
+            List<Attachment> attachments = geometryFrameBuffer.geometryAttachments().getAttachments();
+            VkClearValue.Buffer clearValues = VkClearValue.calloc(attachments.size(), stack);
+            for (Attachment attachment : attachments) {
+                if (attachment.isDepthAttachment()) {
+                    clearValues.apply(v -> v.depthStencil().depth(1.0f));
+                } else {
+                    clearValues.apply(v -> v.color().float32(0, 0.0f).float32(1, 0.0f).float32(2, 0.0f).float32(3, 1));
+                }
+            }
+            clearValues.flip();
 
             VkRenderPassBeginInfo renderPassBeginInfo = VkRenderPassBeginInfo.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO)
-                    .renderPass(renderPass.getVkRenderPass())
+                    .renderPass(geometryFrameBuffer.getRenderPass().getVkRenderPass())
                     .pClearValues(clearValues)
                     .renderArea(a -> a.extent().set(width, height))
                     .framebuffer(frameBuffer.getVkFrameBuffer());
 
-            commandBuffer.beginRecording();
             VkCommandBuffer cmdHandle = commandBuffer.getVkCommandBuffer();
+
+            vkCmdPipelineBarrier(cmdHandle, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT,
+                    0, memoryBarrier.getVkMemoryBarrier(), null, null);
+
             vkCmdBeginRenderPass(cmdHandle, renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
             vkCmdBindPipeline(cmdHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeLine.getVkPipeline());
@@ -228,21 +240,21 @@ public class ForwardRenderActivity {
                             .y(0));
             vkCmdSetScissor(cmdHandle, 0, scissor);
 
-            LongBuffer descriptorSets = stack.mallocLong(4)
+            LongBuffer descriptorSets = stack.mallocLong(6)
                     .put(0, projMatrixDescriptorSet.getVkDescriptorSet())
                     .put(1, viewMatricesDescriptorSets[idx].getVkDescriptorSet())
-                    .put(3, materialsDescriptorSet.getVkDescriptorSet());
+                    .put(5, materialsDescriptorSet.getVkDescriptorSet());
             VulkanUtils.copyMatrixToBuffer(viewMatricesBuffer[idx], scene.getCamera().getViewMatrix());
 
-            recordEntities(stack, cmdHandle, descriptorSets, vulkanModelList);
+            recordEntities(stack, cmdHandle, descriptorSets, vulkanModelList, entityAnimationsBuffers);
 
             vkCmdEndRenderPass(cmdHandle);
-            commandBuffer.endRecording();
         }
     }
 
     private void recordEntities(MemoryStack stack, VkCommandBuffer cmdHandle, LongBuffer descriptorSets,
-                                List<VulkanModel> vulkanModelList) {
+                                List<VulkanModel> vulkanModelList,
+                                Map<String, List<AnimationComputeActivity.EntityAnimationBuffer>> entityAnimationsBuffers) {
         LongBuffer offsets = stack.mallocLong(1);
         offsets.put(0, 0L);
         LongBuffer vertexBuffer = stack.mallocLong(1);
@@ -255,29 +267,38 @@ public class ForwardRenderActivity {
                 materialCount += vulkanModel.getVulkanMaterialList().size();
                 continue;
             }
+            int meshCount = 0;
             for (VulkanModel.VulkanMaterial material : vulkanModel.getVulkanMaterialList()) {
-                if (material.vulkanMeshList().isEmpty()) {
-                    materialCount++;
-                    continue;
-                }
-
                 int materialOffset = materialCount * materialSize;
                 dynDescrSetOffset.put(0, materialOffset);
                 TextureDescriptorSet textureDescriptorSet = descriptorSetMap.get(material.texture().getFileName());
-                descriptorSets.put(2, textureDescriptorSet.getVkDescriptorSet());
+                TextureDescriptorSet normalMapDescriptorSet = descriptorSetMap.get(material.normalMap().getFileName());
+                TextureDescriptorSet metalRoughDescriptorSet = descriptorSetMap.get(material.metalRoughMap().getFileName());
 
                 for (VulkanModel.VulkanMesh mesh : material.vulkanMeshList()) {
-                    vertexBuffer.put(0, mesh.verticesBuffer().getBuffer());
-                    vkCmdBindVertexBuffers(cmdHandle, 0, vertexBuffer, offsets);
+                    if (!vulkanModel.hasAnimations()) {
+                        vertexBuffer.put(0, mesh.verticesBuffer().getBuffer());
+                        vkCmdBindVertexBuffers(cmdHandle, 0, vertexBuffer, offsets);
+                    }
                     vkCmdBindIndexBuffer(cmdHandle, mesh.indicesBuffer().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
                     for (Entity entity : entities) {
+                        if (vulkanModel.hasAnimations()) {
+                            List<AnimationComputeActivity.EntityAnimationBuffer> animationsBuffer = entityAnimationsBuffers.get(entity.getId());
+                            AnimationComputeActivity.EntityAnimationBuffer entityAnimationBuffer = animationsBuffer.get(meshCount);
+                            vertexBuffer.put(0, entityAnimationBuffer.verticesBuffer().getBuffer());
+                            vkCmdBindVertexBuffers(cmdHandle, 0, vertexBuffer, offsets);
+                        }
+                        descriptorSets.put(2, textureDescriptorSet.getVkDescriptorSet());
+                        descriptorSets.put(3, normalMapDescriptorSet.getVkDescriptorSet());
+                        descriptorSets.put(4, metalRoughDescriptorSet.getVkDescriptorSet());
                         vkCmdBindDescriptorSets(cmdHandle, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                 pipeLine.getVkPipelineLayout(), 0, descriptorSets, dynDescrSetOffset);
 
                         VulkanUtils.setMatrixAsPushConstant(pipeLine, cmdHandle, entity.getModelMatrix());
                         vkCmdDrawIndexed(cmdHandle, mesh.numIndices(), 1, 0, 0, 0);
                     }
+                    meshCount++;
                 }
                 materialCount++;
             }
@@ -291,6 +312,8 @@ public class ForwardRenderActivity {
             for (VulkanModel.VulkanMaterial vulkanMaterial : vulkanModel.getVulkanMaterialList()) {
                 int materialOffset = materialCount * materialSize;
                 updateTextureDescriptorSet(vulkanMaterial.texture());
+                updateTextureDescriptorSet(vulkanMaterial.normalMap());
+                updateTextureDescriptorSet(vulkanMaterial.metalRoughMap());
                 updateMaterialsBuffer(materialsBuffer, vulkanMaterial, materialOffset);
                 materialCount++;
             }
@@ -300,10 +323,7 @@ public class ForwardRenderActivity {
     public void resize(SwapChain swapChain) {
         VulkanUtils.copyMatrixToBuffer(projMatrixUniform, scene.getProjection().getProjectionMatrix());
         this.swapChain = swapChain;
-        Arrays.stream(frameBuffers).forEach(FrameBuffer::cleanup);
-        Arrays.stream(depthAttachments).forEach(Attachment::cleanup);
-        createDepthImages();
-        createFrameBuffers();
+        geometryFrameBuffer.resize(swapChain);
     }
 
     public void submit(Queue queue) {
@@ -315,7 +335,7 @@ public class ForwardRenderActivity {
             queue.submit(stack.pointers(commandBuffer.getVkCommandBuffer()),
                     stack.longs(syncSemaphores.imgAcquisitionSemaphore().getVkSemaphore()),
                     stack.ints(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT),
-                    stack.longs(syncSemaphores.renderCompleteSemaphore().getVkSemaphore()), currentFence);
+                    stack.longs(syncSemaphores.geometryCompleteSemaphore().getVkSemaphore()), currentFence);
         }
     }
 
@@ -323,6 +343,11 @@ public class ForwardRenderActivity {
         long mappedMemory = vulkanBuffer.map();
         ByteBuffer materialBuffer = MemoryUtil.memByteBuffer(mappedMemory, (int) vulkanBuffer.getRequestedSize());
         material.diffuseColor().get(offset, materialBuffer);
+        materialBuffer.putFloat(offset + GraphConstants.FLOAT_LENGTH * 4, material.hasTexture() ? 1.0f : 0.0f);
+        materialBuffer.putFloat(offset + GraphConstants.FLOAT_LENGTH * 5, material.hasNormalMap() ? 1.0f : 0.0f);
+        materialBuffer.putFloat(offset + GraphConstants.FLOAT_LENGTH * 6, material.hasMetalRoughMap() ? 1.0f : 0.0f);
+        materialBuffer.putFloat(offset + GraphConstants.FLOAT_LENGTH * 7, material.roughnessFactor());
+        materialBuffer.putFloat(offset + GraphConstants.FLOAT_LENGTH * 8, material.metallicFactor());
         vulkanBuffer.unMap();
     }
 

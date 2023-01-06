@@ -32,6 +32,9 @@ public class Window {
         width = vidMode.width();
         height = vidMode.height();
 
+        width = Math.min(width, 1024);
+        height = Math.min(height, 1024);
+
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);

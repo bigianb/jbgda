@@ -1,7 +1,7 @@
 package net.ijbrown.jbgda.eng.graph.vk;
 
 import org.lwjgl.PointerBuffer;
-import org.lwjgl.system.MemoryStack;
+import org.lwjgl.system.*;
 import org.lwjgl.util.vma.VmaAllocationCreateInfo;
 import org.lwjgl.vulkan.VkBufferCreateInfo;
 
@@ -10,6 +10,7 @@ import java.nio.LongBuffer;
 import static org.lwjgl.system.MemoryUtil.NULL;
 import static org.lwjgl.util.vma.Vma.*;
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class VulkanBuffer {
 
@@ -21,7 +22,8 @@ public class VulkanBuffer {
 
     private long mappedMemory;
 
-    public VulkanBuffer(Device device, long size, int bufferUsage, int memoryUsage, int requiredFlags) {
+    public VulkanBuffer(Device device, long size, int bufferUsage, int memoryUsage,
+                        int requiredFlags) {
         this.device = device;
         requestedSize = size;
         try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -37,15 +39,16 @@ public class VulkanBuffer {
 
             PointerBuffer pAllocation = stack.callocPointer(1);
             LongBuffer lp = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vmaCreateBuffer(device.getMemoryAllocator().getVmaAllocator(), bufferCreateInfo, allocInfo, lp,
+            vkCheck(vmaCreateBuffer(device.getMemoryAllocator().getVmaAllocator(), bufferCreateInfo, allocInfo, lp,
                     pAllocation, null), "Failed to create buffer");
             buffer = lp.get(0);
             allocation = pAllocation.get(0);
-            pb = PointerBuffer.allocateDirect(1);
+            pb = MemoryUtil.memAllocPointer(1);
         }
     }
 
     public void cleanup() {
+        MemoryUtil.memFree(pb);
         unMap();
         vmaDestroyBuffer(device.getMemoryAllocator().getVmaAllocator(), buffer, allocation);
     }
@@ -64,7 +67,7 @@ public class VulkanBuffer {
 
     public long map() {
         if (mappedMemory == NULL) {
-            VulkanUtils.vkCheck(vmaMapMemory(device.getMemoryAllocator().getVmaAllocator(), allocation, pb),
+            vkCheck(vmaMapMemory(device.getMemoryAllocator().getVmaAllocator(), allocation, pb),
                     "Failed to map allocation");
             mappedMemory = pb.get(0);
         }

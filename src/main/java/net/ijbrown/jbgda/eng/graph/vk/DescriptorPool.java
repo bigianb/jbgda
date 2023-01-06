@@ -8,6 +8,7 @@ import java.nio.LongBuffer;
 import java.util.List;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class DescriptorPool {
 
@@ -35,7 +36,7 @@ public class DescriptorPool {
                     .maxSets(maxSets);
 
             LongBuffer pDescriptorPool = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vkCreateDescriptorPool(device.getVkDevice(), descriptorPoolInfo, null, pDescriptorPool),
+            vkCheck(vkCreateDescriptorPool(device.getVkDevice(), descriptorPoolInfo, null, pDescriptorPool),
                     "Failed to create descriptor pool");
             vkDescriptorPool = pDescriptorPool.get(0);
         }
@@ -51,7 +52,7 @@ public class DescriptorPool {
             LongBuffer longBuffer = stack.mallocLong(1);
             longBuffer.put(0, vkDescriptorSet);
 
-            VulkanUtils.vkCheck(vkFreeDescriptorSets(device.getVkDevice(), vkDescriptorPool, longBuffer),
+            vkCheck(vkFreeDescriptorSets(device.getVkDevice(), vkDescriptorPool, longBuffer),
                     "Failed to free descriptor set");
         }
     }

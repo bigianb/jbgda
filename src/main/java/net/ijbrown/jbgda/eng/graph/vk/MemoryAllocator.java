@@ -6,6 +6,7 @@ import org.lwjgl.util.vma.*;
 import org.lwjgl.vulkan.VkDevice;
 
 import static org.lwjgl.util.vma.Vma.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class MemoryAllocator {
 
@@ -23,7 +24,7 @@ public class MemoryAllocator {
                     .device(vkDevice)
                     .physicalDevice(physicalDevice.getVkPhysicalDevice())
                     .pVulkanFunctions(vmaVulkanFunctions);
-            VulkanUtils.vkCheck(vmaCreateAllocator(createInfo, pAllocator),
+            vkCheck(vmaCreateAllocator(createInfo, pAllocator),
                     "Failed to create VMA allocator");
 
             vmaAllocator = pAllocator.get(0);

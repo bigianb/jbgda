@@ -6,6 +6,7 @@ import org.lwjgl.vulkan.VkSemaphoreCreateInfo;
 import java.nio.LongBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class Semaphore {
 
@@ -19,7 +20,7 @@ public class Semaphore {
                     .sType(VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO);
 
             LongBuffer lp = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vkCreateSemaphore(device.getVkDevice(), semaphoreCreateInfo, null, lp),
+            vkCheck(vkCreateSemaphore(device.getVkDevice(), semaphoreCreateInfo, null, lp),
                     "Failed to create semaphore");
             vkSemaphore = lp.get(0);
         }

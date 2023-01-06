@@ -28,6 +28,8 @@ public class Engine {
     public void run() {
         EngineProperties engineProperties = EngineProperties.getInstance();
         long initialTime = System.nanoTime();
+
+        // Number of nano seconds per update
         double timeU = 1000000000d / engineProperties.getUps();
         double deltaU = 0;
 

@@ -11,6 +11,7 @@ import java.util.*;
 
 import static org.lwjgl.vulkan.EXTDebugUtils.*;
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class Instance {
 
@@ -90,13 +91,13 @@ public class Instance {
                     .ppEnabledExtensionNames(requiredExtensions);
 
             PointerBuffer pInstance = stack.mallocPointer(1);
-            VulkanUtils.vkCheck(vkCreateInstance(instanceInfo, null, pInstance), "Error creating instance");
+            vkCheck(vkCreateInstance(instanceInfo, null, pInstance), "Error creating instance");
             vkInstance = new VkInstance(pInstance.get(0), instanceInfo);
 
             vkDebugHandle = VK_NULL_HANDLE;
             if (supportsValidation) {
                 LongBuffer longBuff = stack.mallocLong(1);
-                VulkanUtils.vkCheck(vkCreateDebugUtilsMessengerEXT(vkInstance, debugUtils, null, longBuff), "Error creating debug utils");
+                vkCheck(vkCreateDebugUtilsMessengerEXT(vkInstance, debugUtils, null, longBuff), "Error creating debug utils");
                 vkDebugHandle = longBuff.get(0);
             }
         }

@@ -1,7 +1,7 @@
 package net.ijbrown.jbgda.eng.scene;
 
-import net.ijbrown.jbgda.eng.Window;
 import org.joml.Vector4f;
+import net.ijbrown.jbgda.eng.Window;
 import net.ijbrown.jbgda.eng.graph.vk.GraphConstants;
 
 import java.util.*;
@@ -26,7 +26,11 @@ public class Scene {
     }
 
     public void addEntity(Entity entity) {
-        List<Entity> entities = entitiesMap.computeIfAbsent(entity.getModelId(), k -> new ArrayList<>());
+        List<Entity> entities = entitiesMap.get(entity.getModelId());
+        if (entities == null) {
+            entities = new ArrayList<>();
+            entitiesMap.put(entity.getModelId(), entities);
+        }
         entities.add(entity);
     }
 

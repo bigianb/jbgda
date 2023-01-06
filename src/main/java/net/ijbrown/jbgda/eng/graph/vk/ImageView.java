@@ -6,6 +6,7 @@ import org.lwjgl.vulkan.VkImageViewCreateInfo;
 import java.nio.LongBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class ImageView {
 
@@ -32,7 +33,7 @@ public class ImageView {
                             .baseArrayLayer(imageViewData.baseArrayLayer)
                             .layerCount(imageViewData.layerCount));
 
-            VulkanUtils.vkCheck(vkCreateImageView(device.getVkDevice(), viewCreateInfo, null, lp),
+            vkCheck(vkCreateImageView(device.getVkDevice(), viewCreateInfo, null, lp),
                     "Failed to create image view");
             vkImageView = lp.get(0);
         }

@@ -1,8 +1,7 @@
 package net.ijbrown.jbgda.eng.graph;
 
 import net.ijbrown.jbgda.eng.EngineProperties;
-import net.ijbrown.jbgda.eng.graph.vk.Device;
-import net.ijbrown.jbgda.eng.graph.vk.Texture;
+import net.ijbrown.jbgda.eng.graph.vk.*;
 
 import java.util.*;
 
@@ -33,6 +32,10 @@ public class TextureCache {
         return texture;
     }
 
+    public void addTexture(Texture texture, String path) {
+        textureMap.put(path, texture);
+    }
+
     public List<Texture> getAsList() {
         return new ArrayList<>(textureMap.values());
     }
@@ -48,4 +51,6 @@ public class TextureCache {
     public Texture getTexture(String texturePath) {
         return textureMap.get(texturePath.trim());
     }
+
+
 }

@@ -8,6 +8,7 @@ import org.tinylog.Logger;
 import java.nio.*;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class Queue {
 
@@ -50,7 +51,7 @@ public class Queue {
             }
             long fenceHandle = fence != null ? fence.getVkFence() : VK_NULL_HANDLE;
 
-            VulkanUtils.vkCheck(vkQueueSubmit(vkQueue, submitInfo, fenceHandle),
+            vkCheck(vkQueueSubmit(vkQueue, submitInfo, fenceHandle),
                     "Failed to submit command to queue");
         }
     }

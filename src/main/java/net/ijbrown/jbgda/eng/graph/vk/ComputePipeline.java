@@ -7,6 +7,7 @@ import org.tinylog.Logger;
 import java.nio.*;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class ComputePipeline {
 
@@ -42,7 +43,7 @@ public class ComputePipeline {
             VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = VkPipelineLayoutCreateInfo.calloc(stack)
                     .sType(VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO)
                     .pSetLayouts(ppLayout);
-            VulkanUtils.vkCheck(vkCreatePipelineLayout(device.getVkDevice(), pPipelineLayoutCreateInfo, null, lp),
+            vkCheck(vkCreatePipelineLayout(device.getVkDevice(), pPipelineLayoutCreateInfo, null, lp),
                     "Failed to create pipeline layout");
             vkPipelineLayout = lp.get(0);
 
@@ -50,7 +51,7 @@ public class ComputePipeline {
                     .sType(VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO)
                     .stage(shaderStage)
                     .layout(vkPipelineLayout);
-            VulkanUtils.vkCheck(vkCreateComputePipelines(device.getVkDevice(), pipelineCache.getVkPipelineCache(), computePipelineCreateInfo,
+            vkCheck(vkCreateComputePipelines(device.getVkDevice(), pipelineCache.getVkPipelineCache(), computePipelineCreateInfo,
                     null, lp), "Error creating compute pipeline");
             vkPipeline = lp.get(0);
         }

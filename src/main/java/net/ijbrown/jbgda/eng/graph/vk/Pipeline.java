@@ -7,6 +7,7 @@ import org.tinylog.Logger;
 import java.nio.*;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class Pipeline {
 
@@ -120,7 +121,7 @@ public class Pipeline {
                     .pSetLayouts(ppLayout)
                     .pPushConstantRanges(vpcr);
 
-            VulkanUtils.vkCheck(vkCreatePipelineLayout(device.getVkDevice(), pPipelineLayoutCreateInfo, null, lp),
+            vkCheck(vkCreatePipelineLayout(device.getVkDevice(), pPipelineLayoutCreateInfo, null, lp),
                     "Failed to create pipeline layout");
             vkPipelineLayout = lp.get(0);
 
@@ -139,7 +140,7 @@ public class Pipeline {
             if (ds != null) {
                 pipeline.pDepthStencilState(ds);
             }
-            VulkanUtils.vkCheck(vkCreateGraphicsPipelines(device.getVkDevice(), pipelineCache.getVkPipelineCache(), pipeline, null, lp),
+            vkCheck(vkCreateGraphicsPipelines(device.getVkDevice(), pipelineCache.getVkPipelineCache(), pipeline, null, lp),
                     "Error creating graphics pipeline");
             vkPipeline = lp.get(0);
         }

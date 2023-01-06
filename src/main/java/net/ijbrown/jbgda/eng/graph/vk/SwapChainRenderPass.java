@@ -6,6 +6,7 @@ import org.lwjgl.vulkan.*;
 import java.nio.LongBuffer;
 
 import static org.lwjgl.vulkan.VK11.*;
+import static net.ijbrown.jbgda.eng.graph.vk.VulkanUtils.vkCheck;
 
 public class SwapChainRenderPass {
 
@@ -66,7 +67,7 @@ public class SwapChainRenderPass {
                     .pDependencies(subpassDependencies);
 
             LongBuffer lp = stack.mallocLong(1);
-            VulkanUtils.vkCheck(vkCreateRenderPass(swapChain.getDevice().getVkDevice(), renderPassInfo, null, lp),
+            vkCheck(vkCreateRenderPass(swapChain.getDevice().getVkDevice(), renderPassInfo, null, lp),
                     "Failed to create render pass");
             vkRenderPass = lp.get(0);
         }
