@@ -1,5 +1,7 @@
 package net.ijbrown.jbgda.demos;
 
+import imgui.ImGui;
+import imgui.flag.ImGuiCond;
 import net.ijbrown.jbgda.eng.*;
 import net.ijbrown.jbgda.eng.graph.Render;
 import net.ijbrown.jbgda.eng.graph.vk.Device;
@@ -77,6 +79,14 @@ public class ViewChest implements IAppLogic {
         } else {
             angleInc = 0;
             scene.setLightChanged(false);
+        }
+
+        if (window.isKeyPressed(GLFW_KEY_0)) {
+            scene.setGuiInstance(null);
+        } else if (window.isKeyPressed(GLFW_KEY_1)) {
+            scene.setGuiInstance(new DemoGui());
+        } else if (window.isKeyPressed(GLFW_KEY_2)) {
+            scene.setGuiInstance(new SimpleGui());
         }
 
         MouseInput mouseInput = window.getMouseInput();
@@ -227,5 +237,27 @@ public class ViewChest implements IAppLogic {
         lightDirection.normalize();
         lightDirection.w = 0.0f;
     }
+    private static class DemoGui implements IGuiInstance {
+        @Override
+        public void drawGui() {
+            ImGui.newFrame();
+            ImGui.setNextWindowPos(0, 0, ImGuiCond.Always);
+            ImGui.showDemoWindow();
+            ImGui.endFrame();
+            ImGui.render();
+        }
+    }
 
+    private static class SimpleGui implements IGuiInstance {
+        @Override
+        public void drawGui() {
+            ImGui.newFrame();
+            ImGui.setNextWindowPos(0, 0, ImGuiCond.Always);
+            ImGui.setNextWindowSize(200, 200);
+            ImGui.begin("Test Window");
+            ImGui.end();
+            ImGui.endFrame();
+            ImGui.render();
+        }
+    }
 }

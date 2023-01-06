@@ -1,5 +1,7 @@
 package net.ijbrown.jbgda.eng;
 
+import imgui.*;
+import org.joml.Vector2f;
 import net.ijbrown.jbgda.eng.graph.Render;
 import net.ijbrown.jbgda.eng.scene.Scene;
 
@@ -24,12 +26,21 @@ public class Engine {
         render.cleanup();
         window.cleanup();
     }
-    
+
+    private boolean handleInputGui() {
+        ImGuiIO imGuiIO = ImGui.getIO();
+        MouseInput mouseInput = window.getMouseInput();
+        Vector2f mousePos = mouseInput.getCurrentPos();
+        imGuiIO.setMousePos(mousePos.x, mousePos.y);
+        imGuiIO.setMouseDown(0, mouseInput.isLeftButtonPressed());
+        imGuiIO.setMouseDown(1, mouseInput.isRightButtonPressed());
+
+        return imGuiIO.getWantCaptureMouse() || imGuiIO.getWantCaptureKeyboard();
+    }
+
     public void run() {
         EngineProperties engineProperties = EngineProperties.getInstance();
         long initialTime = System.nanoTime();
-
-        // Number of nano seconds per update
         double timeU = 1000000000d / engineProperties.getUps();
         double deltaU = 0;
 
@@ -45,7 +56,8 @@ public class Engine {
 
             if (deltaU >= 1) {
                 long diffTimeNanos = currentTime - updateTime;
-                appLogic.handleInput(window, scene, diffTimeNanos, false);
+                boolean inputConsumed = handleInputGui();
+                appLogic.handleInput(window, scene, diffTimeNanos, inputConsumed);
                 updateTime = currentTime;
                 deltaU--;
             }
@@ -65,3 +77,4 @@ public class Engine {
         running = false;
     }
 }
+

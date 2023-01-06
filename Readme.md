@@ -34,4 +34,7 @@ individual visibility in the babylon viewer to see the differences. One example 
 has sub-meshes for both the interior exploding powder keg and also various amounts of gold coins. During gameplay the
 engine will select one interior to display.
 
+### Credits
+
+The LWJGL Vulkan code is from https://github.com/lwjglgamedev/vulkanbook
 
