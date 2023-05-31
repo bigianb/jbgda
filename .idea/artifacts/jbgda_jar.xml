@@ -1,0 +1,11 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="jbgda:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/jbgda_jar</output-path>
+    <root id="archive" name="jbgda.jar">
+      <element id="module-output" name="jbgda" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/tinylog/tinylog-impl/2.4.1/tinylog-impl-2.4.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/tinylog/tinylog-api/2.4.1/tinylog-api-2.4.1.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/joml/joml/1.10.4/joml-1.10.4.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

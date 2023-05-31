@@ -25,20 +25,21 @@ public class ExtractFiles
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
         // that pattern (useful for debugging).
 
-        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "objects");
+        //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "objects");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
-        //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, true, "");
+        new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, true, "");
     }
 
     private void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
         var config = new Config(gameType);
         var gameDataPath = FileSystems.getDefault().getPath(config.getDataDir());
+        Logger.info("Reading game data from {}", gameDataPath);
 
         var extractedPath = FileSystems.getDefault().getPath(gameDataPath + "_EXTRACTED");
+        Logger.info("Extracting to {}", extractedPath);
 
         Files.createDirectories(extractedPath);
 
-        Logger.info("Extracting to {}", extractedPath);
         if (extractLmps) {
             extractGobs(gameDataPath, extractedPath, gameType);
             extractLmps(gameDataPath, extractedPath, gameType);
