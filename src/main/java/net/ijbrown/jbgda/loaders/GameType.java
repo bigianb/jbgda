@@ -5,8 +5,23 @@ package net.ijbrown.jbgda.loaders;
  */
 public enum GameType
 {
-    DARK_ALLIANCE,
-    CHAMPIONS_OF_NORRATH,
-    CHAMPIONS_RTA,
-    JUSTICE_LEAGUE_HEROES
+    DARK_ALLIANCE("Dark Alliance"),
+    CHAMPIONS_OF_NORRATH("Champions of Norrath"),
+    CHAMPIONS_RTA("Return to Arms"),
+    JUSTICE_LEAGUE_HEROES("Justice League Heroes");
+
+    public String getName() {
+        return name;
+    }
+
+    private final String name;
+
+    GameType(String name){
+        this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return name;
+    }
 }
