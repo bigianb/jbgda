@@ -30,7 +30,7 @@ public class ExtractFiles
         new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, true, "");
     }
 
-    private void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
+    public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
         var config = new Config(gameType);
         var gameDataPath = FileSystems.getDefault().getPath(config.getDataDir());
         Logger.info("Reading game data from {}", gameDataPath);

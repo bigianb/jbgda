@@ -1,6 +1,7 @@
 package net.ijbrown.jbgda.demos;
 
 import net.ijbrown.jbgda.loaders.GameType;
+import net.ijbrown.jbgda.loaders.Config;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
@@ -9,6 +10,7 @@ import javax.swing.text.StyleContext;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.IOException;
 import java.util.Locale;
 
 public class ExtractFilesUI {
@@ -16,7 +18,8 @@ public class ExtractFilesUI {
     private JPanel contentPanel;
     private JCheckBox extractLmpsCheckbox;
     private JTextField patternField;
-    private JTextArea textArea1;
+    private JTextField rootdirField;
+    private JButton extractButton;
 
     public static void main(String[] args) {
         JFrame frame = new JFrame("Extract Files");
@@ -36,7 +39,22 @@ public class ExtractFilesUI {
         gameCombo.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                System.out.println("combo action");
+                var config = new Config((GameType) gameCombo.getSelectedItem());
+                rootdirField.setText(config.getRootDir());
+            }
+        });
+        var config = new Config((GameType) gameCombo.getSelectedItem());
+        rootdirField.setText(config.getRootDir());
+        extractButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // TODO: don't block UI
+                try {
+                    var gameType = (GameType) gameCombo.getSelectedItem();
+                    new ExtractFiles().doExtract(gameType, extractLmpsCheckbox.isSelected(), patternField.getText());
+                } catch (IOException ex) {
+                    System.out.println(ex.toString());
+                }
             }
         });
     }
@@ -139,40 +157,52 @@ public class ExtractFilesUI {
         panel2.setLayout(new GridBagLayout());
         contentPanel.add(panel2, BorderLayout.CENTER);
         panel2.setBorder(BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Info", TitledBorder.DEFAULT_JUSTIFICATION, TitledBorder.DEFAULT_POSITION, null, null));
-        textArea1 = new JTextArea();
-        gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0;
-        gbc.weighty = 1.0;
-        gbc.fill = GridBagConstraints.BOTH;
-        panel2.add(textArea1, gbc);
         final JPanel panel3 = new JPanel();
         panel3.setLayout(new GridBagLayout());
         gbc = new GridBagConstraints();
         gbc.gridx = 0;
-        gbc.gridy = 1;
+        gbc.gridy = 0;
         gbc.weightx = 1.0;
         gbc.weighty = 1.0;
         gbc.fill = GridBagConstraints.BOTH;
         panel2.add(panel3, gbc);
-        final JButton button1 = new JButton();
-        button1.setActionCommand("doExtract");
-        button1.setText("Extract");
-        gbc = new GridBagConstraints();
-        gbc.gridx = 1;
-        gbc.gridy = 0;
-        gbc.weightx = 1.0;
-        gbc.weighty = 1.0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        panel3.add(button1, gbc);
-        final JPanel spacer2 = new JPanel();
+        final JLabel label4 = new JLabel();
+        label4.setText("Root Input Dir");
         gbc = new GridBagConstraints();
         gbc.gridx = 0;
         gbc.gridy = 0;
+        gbc.anchor = GridBagConstraints.WEST;
+        panel3.add(label4, gbc);
+        rootdirField = new JTextField();
+        rootdirField.setEditable(false);
+        rootdirField.setEnabled(false);
+        rootdirField.setHorizontalAlignment(2);
+        rootdirField.setPreferredSize(new Dimension(200, 30));
+        gbc = new GridBagConstraints();
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        gbc.weightx = 100.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        panel3.add(rootdirField, gbc);
+        extractButton = new JButton();
+        extractButton.setActionCommand("doExtract");
+        extractButton.setText("Extract");
+        gbc = new GridBagConstraints();
+        gbc.gridx = 2;
+        gbc.gridy = 1;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        panel3.add(extractButton, gbc);
+        final JPanel spacer2 = new JPanel();
+        gbc = new GridBagConstraints();
+        gbc.gridx = 1;
+        gbc.gridy = 1;
         gbc.weightx = 100.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         panel3.add(spacer2, gbc);
+        label4.setLabelFor(rootdirField);
     }
 
     /**
