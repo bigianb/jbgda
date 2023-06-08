@@ -43,6 +43,7 @@ public class ExtractFiles
         if (extractLmps) {
             extractGobs(gameDataPath, extractedPath, gameType);
             extractLmps(gameDataPath, extractedPath, gameType);
+            extractHDRDATArchives(gameDataPath, extractedPath, gameType);
         }
         convertTexFiles(extractedPath, gameType, pattern);
         convertVifFiles(extractedPath, gameType, pattern);
@@ -78,7 +79,7 @@ public class ExtractFiles
         var fileFinder = new FileFinder(".vif");
         Files.walkFileTree(extractedPath, fileFinder);
 
-        Logger.info("found {} tex files", fileFinder.found.size());
+        Logger.info("found {} vif files", fileFinder.found.size());
         for (var file : fileFinder.found){
             if (pattern == null || pattern.isEmpty() || file.toString().contains(pattern)) {
                 Logger.debug("Converting {}", file.toString());
@@ -236,4 +237,25 @@ public class ExtractFiles
             }
         }
     }
+
+    private void extractHDRDATArchives(Path gameDataPath, Path extractedPath, GameType gameType) throws IOException {
+        var extractor = new HdrDatExtractor(gameType);
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(gameDataPath, "*.HDR")) {
+            for (Path hdrPath: stream) {
+                var hdrFilename = hdrPath.getFileName().toString();
+                Logger.info("Extracting {}", hdrFilename);
+                var outDirname = hdrFilename.replace('.', '_');
+                var outPath = extractedPath.resolve(outDirname);
+                Files.createDirectories(outPath);
+
+                var baseFilename = hdrFilename.split("\\.")[0];
+                var datFilename = baseFilename + ".DAT";
+                var datPath = hdrPath.resolveSibling(datFilename);
+
+                extractor.extract(baseFilename, hdrPath.toAbsolutePath(), datPath.toAbsolutePath(), outPath);
+            }
+        }
+
+    }
+
 }

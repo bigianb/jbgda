@@ -8,8 +8,6 @@ import javax.swing.border.TitledBorder;
 import javax.swing.plaf.FontUIResource;
 import javax.swing.text.StyleContext;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.IOException;
 import java.util.Locale;
 
@@ -36,25 +34,19 @@ public class ExtractFilesUI {
         gametypeComboModel.addElement(GameType.CHAMPIONS_RTA);
         gametypeComboModel.addElement(GameType.JUSTICE_LEAGUE_HEROES);
         gameCombo.setModel(gametypeComboModel);
-        gameCombo.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                var config = new Config((GameType) gameCombo.getSelectedItem());
-                rootdirField.setText(config.getRootDir());
-            }
+        gameCombo.addActionListener(e -> {
+            var config = new Config((GameType) gameCombo.getSelectedItem());
+            rootdirField.setText(config.getRootDir());
         });
         var config = new Config((GameType) gameCombo.getSelectedItem());
         rootdirField.setText(config.getRootDir());
-        extractButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                // TODO: don't block UI
-                try {
-                    var gameType = (GameType) gameCombo.getSelectedItem();
-                    new ExtractFiles().doExtract(gameType, extractLmpsCheckbox.isSelected(), patternField.getText());
-                } catch (IOException ex) {
-                    System.out.println(ex.toString());
-                }
+        extractButton.addActionListener(e -> {
+            // TODO: don't block UI
+            try {
+                var gameType = (GameType) gameCombo.getSelectedItem();
+                new ExtractFiles().doExtract(gameType, extractLmpsCheckbox.isSelected(), patternField.getText());
+            } catch (IOException ex) {
+                System.err.println(ex.getMessage());
             }
         });
     }

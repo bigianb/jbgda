@@ -12,7 +12,7 @@ You need to copy the contents of the DVD into
 `/emu/bgda` on windows or linux (generally that would be `c:\emu\bgda\` on windows) and `~/ps2_games` on the Mac.
 
 Under this directory create game specific dirs:
-`DARK_ALLIANCE`, `CHAMPIONS_OF_NORRATH`, `JUSTICE_LEAGUE_HEROES`.
+`DARK_ALLIANCE`, `CHAMPIONS_OF_NORRATH`, `JUSTICE_LEAGUE_HEROES` or `RTA`.
 
 Look at the file `net.ijbrown.jbdga.loaders.Config` for details.
 
