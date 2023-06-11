@@ -27,7 +27,7 @@ public class ExtractFiles
 
         //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "objects");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
-        new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, true, "");
+        new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "ant");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -110,7 +110,7 @@ public class ExtractFiles
                     for(var anmPath : anmFinder.found){
                         byte[] anmFileData = Files.readAllBytes(anmPath);
                         AnmDecoder anmDecoder = new AnmDecoder();
-                        var anmData = anmDecoder.decode(anmFileData, 0, anmFileData.length);
+                        var anmData = anmDecoder.decode(gameType, anmFileData, 0, anmFileData.length);
                         anmData.name = anmPath.getFileName().toString();
                         anmList.add(anmData);
                     }
