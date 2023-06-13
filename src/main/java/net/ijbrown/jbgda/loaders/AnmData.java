@@ -29,34 +29,18 @@ public class AnmData
      */
     public List<Integer> skeletonDef;
 
-    /*
-    This is a sanitised version of skeletonDef. The example above would transform to:
-
-    -1, 0, 1, 2, 0, 4, 5, 4, 7
-
-    Each entry is the joint number of the parent with -1 indicating the root.
-
-     */
-    public List<Integer> jointParents;
-
     public String name;
     public List<Pose> poses;
 
-    public List<KeyFrame> keyFrames;
-
-    public static class KeyFrame {
-        public float timestamp;
-
-        public List<Vector3f> jointPositions;
-
-        public List<Quaternionf> jointRotations;
-    }
+    public Pose[][] perFramePoses;
+    public Pose[][] perFrameFkPoses;
 
     public static class Pose {
         public int jointNo;
         public int frameNo;
         public Quaternionf rotation;
         public Quaternionf angularVelocity;
+
         public Vector3f position;
 
         public Vector3f velocity;

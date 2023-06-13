@@ -62,7 +62,7 @@ public class Gltf
         this.texName = texName;
         this.texW = texW;
         this.texH = texH;
-        this.animations = animations;
+        this.animations = null; //animations;
     }
 
     public boolean isAnimated()
@@ -95,7 +95,7 @@ public class Gltf
 
     private Skeleton buildSkeleton()
     {
-        if (animations.size() > 0) {
+        if (animations != null && animations.size() > 0) {
             var skeleton = new Skeleton();
             var rootNode = new Node("skel_root_"+nodes.size());
             addNode(rootNode);
