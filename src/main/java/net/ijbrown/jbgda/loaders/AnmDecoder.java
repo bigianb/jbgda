@@ -406,7 +406,7 @@ public class AnmDecoder {
 
                 var m = new Matrix3f();
                 m.rotation(parentRot);
-                var thisPos = m.transform(pose.position);
+                var thisPos = m.transform(pose.position, new Vector3f());
                 thisPos.add(parentPos.x, parentPos.y, parentPos.z);
 
                 // The world rotation of the child joint is the world rotation of the parent rotated by the local rotation of the child.

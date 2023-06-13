@@ -492,7 +492,7 @@ public class Gltf
     {
         List<Matrix4f> matrices = new ArrayList<>();
         matrices.add(new Matrix4f());       // Root is at 0
-        for (var jointPos : anmData.bindingPoseLocal){
+        for (var jointPos : anmData.bindingPose){
             matrices.add(new Matrix4f().translation(-jointPos.x(), -jointPos.y(), -jointPos.z()));
         }
 
