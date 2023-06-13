@@ -27,7 +27,7 @@ public class ExtractFiles
 
         //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "objects");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
-        new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "");
+        new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "chain");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -108,11 +108,22 @@ public class ExtractFiles
 
                     List<AnmData> anmList = new ArrayList<>();
                     for(var anmPath : anmFinder.found){
-                        byte[] anmFileData = Files.readAllBytes(anmPath);
-                        AnmDecoder anmDecoder = new AnmDecoder();
-                        var anmData = anmDecoder.decode(gameType, anmFileData, 0, anmFileData.length);
-                        anmData.name = anmPath.getFileName().toString();
-                        anmList.add(anmData);
+                        var anmName = anmPath.getFileName().toString();
+                        // TODO: Needs config
+                        boolean include = true;
+                        if (vifFilename.startsWith("projectile") && !anmName.startsWith("projectile")) {
+                            include = false;
+                        }
+                        if (vifFilename.startsWith("ant") && (anmName.startsWith("projectile") || anmName.startsWith("spel"))) {
+                            include = false;
+                        }
+                        if (include){
+                            byte[] anmFileData = Files.readAllBytes(anmPath);
+                            AnmDecoder anmDecoder = new AnmDecoder();
+                            var anmData = anmDecoder.decode(gameType, anmFileData, 0, anmFileData.length);
+                            anmData.name = anmName;
+                            anmList.add(anmData);
+                        }
                     }
 
                     var gltf = new Gltf(meshList, pngName, texW, texH, anmList);

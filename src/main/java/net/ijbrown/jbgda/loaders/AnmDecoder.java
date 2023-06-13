@@ -163,6 +163,8 @@ public class AnmDecoder {
         BuildPerFramePoses(anmData);
         BuildPerFrameFkPoses(anmData);
 
+        buildKeyframePoses(anmData);
+
         return anmData;
     }
 
@@ -233,13 +235,13 @@ public class AnmDecoder {
         var curAngVelFrame = new int[anmData.numJoints];
         var curVelFrame = new int[anmData.numJoints];
 
-        var totalFrame = 0;
+        var frameNumber = 0;
 
         AnmData.Pose pose = null;
 
         var maxbitpos = (startOffset + len) * 8;
 
-        while (frameBitpos < (maxbitpos - 22) && totalFrame < maxFrames) {
+        while (frameBitpos < (maxbitpos - 22) && frameNumber < maxFrames) {
             int count = DataUtil.getBits(data, frameBitpos, 8, true);
             frameBitpos += 8;
             if (count == 0xFF) {
@@ -253,13 +255,13 @@ public class AnmDecoder {
             if (jointNo >= anmData.numJoints) {
                 break;
             }
-            totalFrame += count;
-            if (pose == null || pose.frameNo != totalFrame || pose.jointNo != jointNo) {
+            frameNumber += count;
+            if (pose == null || pose.frameNo != frameNumber || pose.jointNo != jointNo) {
                 if (pose != null) {
                     anmData.poses.add(pose);
                 }
                 pose = new AnmData.Pose();
-                pose.frameNo = totalFrame;
+                pose.frameNo = frameNumber;
                 pose.jointNo = jointNo;
                 pose.position = curPose[jointNo].position;
                 pose.rotation = curPose[jointNo].rotation;
@@ -282,7 +284,7 @@ public class AnmDecoder {
 
                 Quaternionf angVel = new Quaternionf(b, c, d, a);
                 var prevAngVel = pose.angularVelocity;
-                var coeff = (totalFrame - curAngVelFrame[jointNo]) / 131072.0f;
+                var coeff = (frameNumber - curAngVelFrame[jointNo]) / 131072.0f;
                 Quaternionf angDelta = new Quaternionf(prevAngVel.x * coeff,
                         prevAngVel.y * coeff,
                         prevAngVel.z * coeff,
@@ -291,12 +293,12 @@ public class AnmDecoder {
                         pose.rotation.y + angDelta.y,
                         pose.rotation.z + angDelta.z,
                         pose.rotation.w + angDelta.w);
-                pose.frameNo = totalFrame;
+                pose.frameNo = frameNumber;
                 pose.angularVelocity = angVel;
 
                 curPose[jointNo].rotation = pose.rotation;
                 curPose[jointNo].angularVelocity = pose.angularVelocity;
-                curAngVelFrame[jointNo] = totalFrame;
+                curAngVelFrame[jointNo] = frameNumber;
             } else {
                 var posLen = DataUtil.getBits(data, frameBitpos, 4, true) + 1;
                 frameBitpos += 4;
@@ -310,15 +312,15 @@ public class AnmDecoder {
 
                 Vector3f vel = new Vector3f(x, y, z);
                 var prevVel = pose.velocity;
-                var coeff = (totalFrame - curVelFrame[jointNo]) / 256.0f;
+                var coeff = (frameNumber - curVelFrame[jointNo]) / 256.0f;
                 Vec3F posDelta = new Vec3F(prevVel.x * coeff, prevVel.y * coeff, prevVel.z * coeff);
                 pose.position = new Vector3f(pose.position.x + posDelta.x, pose.position.y + posDelta.y, pose.position.z + posDelta.z);
-                pose.frameNo = totalFrame;
+                pose.frameNo = frameNumber;
                 pose.velocity = vel;
 
                 curPose[jointNo].position = pose.position;
                 curPose[jointNo].velocity = pose.velocity;
-                curVelFrame[jointNo] = totalFrame;
+                curVelFrame[jointNo] = frameNumber;
             }
         }
         if (pose != null) {
@@ -328,6 +330,8 @@ public class AnmDecoder {
 
         BuildPerFramePoses(anmData);
         BuildPerFrameFkPoses(anmData);
+
+        buildKeyframePoses(anmData);
 
         return anmData;
     }
@@ -376,10 +380,13 @@ public class AnmDecoder {
     }
 
     private void BuildPerFrameFkPoses(AnmData anmData) {
-
         if (anmData.perFramePoses == null) {
             throw new IllegalArgumentException("Can't build FK poses until frame poses have been built.");
         }
+
+        // Probably not the best place for it.
+        buildLocalBindingPose(anmData);
+
         var pendingPerFrameFkPoses = new AnmData.Pose[anmData.numFrames][anmData.numJoints];
         var parentPoints = new Vector3f[64];
         var parentRotations = new Quaternionf[64];
@@ -419,4 +426,63 @@ public class AnmDecoder {
 
         anmData.perFrameFkPoses = pendingPerFrameFkPoses;
     }
+
+    private void buildLocalBindingPose(AnmData anmData) {
+        anmData.jointParents = transformSkeletondef(anmData.skeletonDef);
+        anmData.bindingPoseLocal = new ArrayList<>();
+        for(int joint=0; joint< anmData.numJoints; ++joint){
+            // Vector3f is mutable and sub mutates it.
+            var jointPos = new Vector3f(anmData.bindingPose.get(joint));
+            var parentJoint = anmData.jointParents.get(joint);
+            if(parentJoint >= 0){
+                var parentPos = anmData.bindingPose.get(parentJoint);
+                jointPos.sub(parentPos);
+            }
+            anmData.bindingPoseLocal.add(jointPos);
+        }
+    }
+
+    private List<Integer> transformSkeletondef(List<Integer> skeletonDef) {
+        List<Integer> parents = new ArrayList<>();
+        int[] path = new int[skeletonDef.size()+1];
+        path[0] = -1;
+        for (int jointNo=0; jointNo < skeletonDef.size(); ++jointNo)
+        {
+            int skelEntry = skeletonDef.get(jointNo);
+            parents.add(path[skelEntry]);
+            path[skelEntry+1] = jointNo;
+        }
+        return parents;
+    }
+
+    private void buildKeyframePoses(AnmData anmData)
+    {
+        anmData.keyFrames = new ArrayList<>();
+        int thisFrame = anmData.poses.get(0).frameNo;
+        var thisKeyframe = new AnmData.KeyFrame();
+        thisKeyframe.timestamp = thisFrame / 30.0f;
+        thisKeyframe.jointPositions = new ArrayList<>();
+        thisKeyframe.jointRotations = new ArrayList<>();
+        int numJoints = anmData.numJoints;
+        for (int joint=0; joint<numJoints; joint++){
+            thisKeyframe.jointPositions.add(new Vector3f(0.0f, 0.0f, 0.0f));
+            thisKeyframe.jointRotations.add(new Quaternionf(0.0f, 0.0f, 0.0f, 1.0f));
+        }
+        for (var pose : anmData.poses){
+            if (pose.frameNo > thisFrame){
+                thisFrame = pose.frameNo;
+                anmData.keyFrames.add(thisKeyframe);
+                var nextKeyframe = new AnmData.KeyFrame();
+                nextKeyframe.timestamp = thisFrame / 30.0f;
+                nextKeyframe.jointPositions = new ArrayList<>(thisKeyframe.jointPositions);
+                nextKeyframe.jointRotations = new ArrayList<>(thisKeyframe.jointRotations);
+                thisKeyframe = nextKeyframe;
+            }
+            pose.rotation.normalize();
+            thisKeyframe.jointRotations.set(pose.jointNo, pose.rotation);
+            thisKeyframe.jointPositions.set(pose.jointNo, pose.position);
+        }
+        anmData.keyFrames.add(thisKeyframe);
+    }
+
 }

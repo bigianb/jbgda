@@ -11,6 +11,13 @@ public class AnmData
 
     public List<Vector3f> bindingPose;
 
+    public List<KeyFrame> keyFrames;
+    public static class KeyFrame {
+        public float timestamp;
+        public List<Vector3f> jointPositions;
+        public List<Quaternionf> jointRotations;
+    }
+
     /* The local position of each joint relative to the parent. */
     public List<Vector3f> bindingPoseLocal;
 
@@ -28,6 +35,8 @@ public class AnmData
 
      */
     public List<Integer> skeletonDef;
+
+    public List<Integer> jointParents;
 
     public String name;
     public List<Pose> poses;

@@ -62,7 +62,7 @@ public class Gltf
         this.texName = texName;
         this.texW = texW;
         this.texH = texH;
-        this.animations = null; //animations;
+        this.animations = animations;
     }
 
     public boolean isAnimated()
@@ -105,7 +105,7 @@ public class Gltf
             skeleton.joints[0] = rootNode;
             for (int joint=0; joint < anim.numJoints; ++joint) {
                 var node = new Node("skel_" + joint + '_' + nodes.size());
-                node.translation = anim.bindingPoseLocal.get(joint);
+                node.translation = anim.bindingPose.get(joint);
                 addNode(node);
                 skeleton.joints[joint+1] = node;
             }
@@ -165,6 +165,7 @@ public class Gltf
     }
 
     private void writeAnimations(JsonWriter writer, List<AnmData> animations, Skeleton skeleton) throws IOException {
+
         writer.writeKey("animations");
         writer.openArray();
         for (var animation : animations){
@@ -491,7 +492,7 @@ public class Gltf
     {
         List<Matrix4f> matrices = new ArrayList<>();
         matrices.add(new Matrix4f());       // Root is at 0
-        for (var jointPos : anmData.bindingPose){
+        for (var jointPos : anmData.bindingPoseLocal){
             matrices.add(new Matrix4f().translation(-jointPos.x(), -jointPos.y(), -jointPos.z()));
         }
 
@@ -575,7 +576,7 @@ public class Gltf
                 s = (float) uv.u * sCoeff;
                 t = (float) uv.v * tCoeff;
             } else {
-                // Very occasionally (only in nebbish) do we see a vertex with no UV and so we need to protect
+                // Very occasionally (only in nebbish) do we see a vertex with no UV, so we need to protect
                 // against a null pointer exception in that case.
                 // I suspect this is an error in the decoding rather than an error in the data.
                 // The hands on nebbish look wrong.
