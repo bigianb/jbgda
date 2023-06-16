@@ -105,7 +105,7 @@ public class Gltf
             skeleton.joints[0] = rootNode;
             for (int joint=0; joint < anim.numJoints; ++joint) {
                 var node = new Node("skel_" + joint + '_' + nodes.size());
-                node.translation = anim.bindingPose.get(joint);
+                node.translation = anim.bindingPoseLocal.get(joint);
                 addNode(node);
                 skeleton.joints[joint+1] = node;
             }

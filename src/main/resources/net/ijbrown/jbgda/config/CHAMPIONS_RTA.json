@@ -1,0 +1,17 @@
+{
+  "models": [
+    {
+      "vifName": "raloszek.vif",
+      "anmNames": ["attack_left_b.anm", "attack_left.anm", "attack_right_b.anm", "attack_right.anm",
+        "attack_xy.anm", "attack1.anm", "attack2.anm", "attack3.anm",
+        "death.anm", "defeat.anm", "enter.anm",
+        "hit1.anm", "hit2.anm", "hit3.anm", "hit4.anm",
+        "idle.anm", "idle1.anm",
+        "shockwave.anm", "stomp.anm", "walk.anm"]
+    },
+    {
+      "vifName": "sword.vif",
+      "anmNames": []
+    }
+  ]
+}

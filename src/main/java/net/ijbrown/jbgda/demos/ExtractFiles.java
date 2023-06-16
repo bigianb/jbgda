@@ -1,5 +1,8 @@
 package net.ijbrown.jbgda.demos;
 
+import net.ijbrown.jbgda.config.GameConfig;
+import net.ijbrown.jbgda.config.GameConfigs;
+import net.ijbrown.jbgda.config.ModelDef;
 import net.ijbrown.jbgda.exporters.Gltf;
 import net.ijbrown.jbgda.loaders.*;
 import org.tinylog.Logger;
@@ -32,6 +35,9 @@ public class ExtractFiles
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
         var config = new Config(gameType);
+        var gameConfigs = new GameConfigs();
+        gameConfigs.read();
+
         var gameDataPath = FileSystems.getDefault().getPath(config.getDataDir());
         Logger.info("Reading game data from {}", gameDataPath);
 
@@ -46,7 +52,7 @@ public class ExtractFiles
             extractHDRDATArchives(gameDataPath, extractedPath, gameType);
         }
         convertTexFiles(extractedPath, gameType, pattern);
-        convertVifFiles(extractedPath, gameType, pattern);
+        convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
         convertScriptFiles(extractedPath, gameType, pattern);
         convertObFiles(extractedPath, gameType, pattern);
     }
@@ -73,7 +79,8 @@ public class ExtractFiles
         }
     }
 
-    private void convertVifFiles(Path extractedPath, GameType gameType, String pattern) throws IOException {
+    private void convertVifFiles(Path extractedPath, GameType gameType, String pattern, GameConfig gameConfig) throws IOException {
+
         VifDecode decoder = new VifDecode();
 
         var fileFinder = new FileFinder(".vif");
@@ -86,6 +93,8 @@ public class ExtractFiles
                 try {
                     var vifFilename = file.getFileName().toString();
                     var outDir = file.getParent();
+
+                    ModelDef modelDef = gameConfig.getModelDef(vifFilename);
 
                     // Find anm files in the same directory
                     var anmFinder = new FileFinder(".anm");
@@ -109,8 +118,7 @@ public class ExtractFiles
                     List<AnmData> anmList = new ArrayList<>();
                     for(var anmPath : anmFinder.found){
                         var anmName = anmPath.getFileName().toString();
-                        // TODO: Needs config
-                        boolean include = true;
+                        boolean include = modelDef.hasAnimation(anmName);
                         if (vifFilename.startsWith("projectile") && !anmName.startsWith("projectile")) {
                             include = false;
                         }
