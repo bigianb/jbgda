@@ -30,7 +30,7 @@ public class ExtractFiles
 
         //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "objects");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
-        new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "");
+        new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, true, "bf_");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {

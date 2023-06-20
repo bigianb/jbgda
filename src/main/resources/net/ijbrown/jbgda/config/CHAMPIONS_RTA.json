@@ -10,8 +10,17 @@
         "shockwave.anm", "stomp.anm", "walk.anm"]
     },
     {
+      "vifName": "bf_bodyv1.vif",
+      "anmNames": ["bf_intro1.anm", "bf_intro2.anm", "bf_intro3.anm", "bf_intro4.anm"]
+    },
+    {
       "vifName": "sword.vif",
       "anmNames": []
+    }
+  ],
+  "characters": [
+    {
+
     }
   ]
 }

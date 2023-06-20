@@ -36,23 +36,19 @@ public class HdrDatExtractor
 
     public void extract(String baseFilename, Path hdrPath, Path datPath, Path outDirPath) throws IOException
     {
-        if (baseFilename.startsWith("PIC")){
-            System.out.println("Don't understand the format of PICCACHE yet");
-            // Looks like the header for PICCACHE is 5 shorts per element.
-            return;
-        }
-        var headerEntries = readHeader(hdrPath);
+        boolean isPicCache = baseFilename.startsWith("PIC");
+        var headerEntries = readHeader(hdrPath, isPicCache);
 
         byte[] datData = Files.readAllBytes(datPath);
 
-        for (HeaderEntry entry : headerEntries) {
+        for (var entry : headerEntries) {
             var entryPath = outDirPath.resolve(entry.name);
             Files.createDirectories(entryPath);
             for (int el=0; el<entry.headerElements.length; ++el) {
                 var element = entry.headerElements[el];
                 var subfileName = entry.name + "-el_" + el + "-id_" + element.id ;
 
-                if ((el & 1) == 0) {
+                if (isPicCache || (el & 1) == 0) {
                     // elements come in pairs, the first looks like a texture
                     subfileName += ".tex";
                 } else {
@@ -82,9 +78,12 @@ public class HdrDatExtractor
         int id;
         int lenBytes;
         int startPosBytes;
+
+        int width;
+        int height;
     }
 
-    private HeaderEntry[] readHeader(Path hdrPath) throws IOException
+    private HeaderEntry[] readHeader(Path hdrPath, boolean isPicCache) throws IOException
     {
         byte[] headerFileData = Files.readAllBytes(hdrPath);
 
@@ -104,8 +103,22 @@ public class HdrDatExtractor
             for (int el=0; el < numEls; ++el){
                 var element = new HeaderElement();
                 element.id = DataUtil.getLEShort(headerFileData, elOffset); elOffset += 2;
-                element.lenBytes = 2048 * DataUtil.getLEShort(headerFileData, elOffset); elOffset += 2;
-                element.startPosBytes = 2048 * DataUtil.getLEInt(headerFileData, elOffset); elOffset += 4;
+                if (isPicCache) {
+                    // Start and len are reversed between EQCACHE and PICCACHE
+                    element.startPosBytes = 2048 * DataUtil.getLEUShort(headerFileData, elOffset);
+                    elOffset += 2;
+                    element.lenBytes = 2048 * DataUtil.getLEUShort(headerFileData, elOffset);
+                    elOffset += 2;
+                    element.width = DataUtil.getLEShort(headerFileData, elOffset);
+                    elOffset += 2;
+                    element.height = DataUtil.getLEShort(headerFileData, elOffset);
+                    elOffset += 2;
+                } else {
+                    element.lenBytes = 2048 * DataUtil.getLEShort(headerFileData, elOffset);
+                    elOffset += 2;
+                    element.startPosBytes = 2048 * DataUtil.getLEInt(headerFileData, elOffset);
+                    elOffset += 4;
+                }
                 entry.headerElements[el] = element;
             }
             headerEntries[i] = entry;
