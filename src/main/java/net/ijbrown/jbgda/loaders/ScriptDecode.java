@@ -372,12 +372,13 @@ public class ScriptDecode
     {
         switch (name) {
             case "addQuest", "addHelpMessage", "soundSequence" -> printExternal(sb, name, new char[]{'S', 'S'});
-            case "getv", "removeQuest" -> printExternal(sb, name, new char[]{'S'});
+            case "callScript", "cutScene", "getv", "postAction", "removeQuest" -> printExternal(sb, name, new char[]{'S'});
             case "setv", "givePlayerItem" -> printExternal(sb, name, new char[]{'S', 'I'});
             case "startDialog" -> printExternal(sb, name, new char[]{'S', 'S', 'I'});
-            case "givePlayerExp", "givePlayerGold", "hideMonster" -> printExternal(sb, name, new char[]{'I'});
+            case "givePlayerExp", "givePlayerGold", "grantMission", "hideMonster" -> printExternal(sb, name, new char[]{'I'});
             case "activateStore", "getScriptState", "checkNewState", "acquireCamera", "releaseCamera", "getRand", "dialogRunning" -> printExternal(sb, name, new char[]{});
             case "loadMonsterSlot" -> printExternal(sb, name, new char[]{'I', 'S', 'I'});
+            case "setMissionAvailable" -> printExternal(sb, name, new char[]{'I', 'I'});
             case "moveTalkTarget" -> printExternal(sb, name, new char[]{'I', 'I', 'I'});
             case "setTalkTarget" -> printExternal(sb, name, new char[]{'S', 'I', 'I', 'I', 'I', 'I'});
             default -> sb.append(name).append("( ** unknown args ** )");
