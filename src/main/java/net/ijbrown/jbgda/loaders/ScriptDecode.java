@@ -224,27 +224,71 @@ public class ScriptDecode
             case 0x1 -> {
                 bytesConsumed = 4;
                 int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
-                sb.append("acc = var ").append(arg1);
+                sb.append("acc = local var ").append(HexUtil.formatHex(arg1));
+            }
+            case 0x2 -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("s5 = local var ").append(HexUtil.formatHex(arg1));
+            }
+            case 0x3 -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("acc = t4 local var ").append(HexUtil.formatHex(arg1));
+            }
+            case 0x4 -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("s5 = t4 local var ").append(HexUtil.formatHex(arg1));
+            }
+            case 0x9 -> {
+                bytesConsumed = 0;
+                sb.append("acc = local var acc");
             }
             case 0xb -> {
                 bytesConsumed = 4;
                 int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
                 sb.append("acc = ").append(arg1);
             }
+            case 0xc -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("s5 = ").append(arg1);
+            }
             case 0xf -> {
                 bytesConsumed = 4;
                 int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
-                sb.append("var ").append(arg1).append(" = acc");
+                sb.append("local var ").append(HexUtil.formatHex(arg1)).append(" = acc");
             }
             case 0x11 -> {
                 bytesConsumed = 4;
                 int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
-                sb.append("t4 var ").append(arg1).append(" = acc");
+                sb.append("t4 local var ").append(HexUtil.formatHex(arg1)).append(" = acc");
+            }
+            case 0x17 -> {
+                bytesConsumed = 0;
+                sb.append("var (s5) = acc");
+            }
+            case 0x19 -> {
+                bytesConsumed = 0;
+                sb.append("acc = var(s5 + acc * 4)");
+            }
+            case 0x1B -> {
+                bytesConsumed = 0;
+                sb.append("acc = s5 + acc * 4");
+            }
+            case 0x21 -> {
+                bytesConsumed = 0;
+                sb.append("acc = s5");
+            }
+            case 0x22 -> {
+                bytesConsumed = 0;
+                sb.append("s5 = acc");
             }
             case 0x24 -> {
                 bytesConsumed = 0;
                 stack.add(0);
-                sb.append("push a");
+                sb.append("push acc");
             }
             case 0x25 -> {
                 bytesConsumed = 0;
@@ -258,18 +302,29 @@ public class ScriptDecode
                 stack.add(arg1);
                 sb.append("push ").append(HexUtil.formatHex(arg1));
             }
+            case 0x28 -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                stack.add(arg1);
+                sb.append("push local var ").append(HexUtil.formatHex(arg1));
+            }
             case 0x29 -> {
                 bytesConsumed = 4;
                 int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
                 stack.add(arg1);
-                sb.append("push t4 var ").append(HexUtil.formatHex(arg1));
+                sb.append("push t4 local var ").append(HexUtil.formatHex(arg1));
+            }
+            case 0x2B -> {
+                bytesConsumed = 0;
+                stack.remove(stack.size() - 1);
+                sb.append("pop s5");
             }
             case 0x2C -> {
                 // pops a number of bytes off the stack
                 bytesConsumed = 4;
                 int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
                 int numInts = arg1 / 4;
-                for (int idx = 0; idx < numInts && stack.size() > 0; ++idx) {
+                for (int idx = 0; idx < numInts && !stack.isEmpty(); ++idx) {
                     stack.remove(stack.size() - 1);
                 }
                 sb.append("pop bytes ").append(arg1);
@@ -283,6 +338,15 @@ public class ScriptDecode
             case 0x30 -> {
                 bytesConsumed = 0;
                 sb.append("return");
+            }
+            case 0x31 -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                String label = internalsMap.get(arg1);
+                if (label == null){
+                    label = HexUtil.formatHexUShort(arg1);
+                }
+                sb.append("call ").append(label);
             }
             case 0x33 -> {
                 bytesConsumed = 4;
@@ -299,28 +363,121 @@ public class ScriptDecode
                 int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
                 sb.append("Jump if acc != 0 to ").append(HexUtil.formatHexUShort(arg1));
             }
+            case 0x37 -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("if s5 == acc jump to ").append(HexUtil.formatHexUShort(arg1));
+            }
+            case 0x38 -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("if s5 != acc jump to ").append(HexUtil.formatHexUShort(arg1));
+            }
+            case 0x3D -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("if acc < s5 jump to ").append(HexUtil.formatHexUShort(arg1));
+            }
+            case 0x3E -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("if s5 >= acc jump to ").append(HexUtil.formatHexUShort(arg1));
+            }
+            case 0x3F -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("if s5 < acc jump to ").append(HexUtil.formatHexUShort(arg1));
+            }
+            case 0x40 -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("if acc >= s5 jump to ").append(HexUtil.formatHexUShort(arg1));
+            }
+            case 0x48 -> {
+                bytesConsumed = 0;
+                sb.append("acc = acc * s5");
+            }
             case 0x4A -> {
                 bytesConsumed = 0;
-                sb.append("a = s3 / a, s3 = remainder");
+                sb.append("acc = s3 / acc, s3 = remainder");
+            }
+            case 0x4E -> {
+                bytesConsumed = 0;
+                sb.append("acc += s5");
+            }
+            case 0x50 -> {
+                bytesConsumed = 0;
+                sb.append("acc = s5 - acc");
             }
             case 0x54 -> {
                 bytesConsumed = 0;
-                sb.append("acc <= 0");
+                sb.append("acc = acc <= 0");
+            }
+            case 0x57 -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("acc += ").append(HexUtil.formatHex(arg1));
+            }
+            case 0x58 -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("acc *= ").append(HexUtil.formatHex(arg1));
             }
             case 0x59 -> {
                 bytesConsumed = 0;
                 sb.append("acc = 0");
+            }
+            case 0x5A -> {
+                bytesConsumed = 0;
+                sb.append("s5 = 0");
             }
             case 0x5B -> {
                 bytesConsumed = 4;
                 int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
                 sb.append("clear local var ").append(HexUtil.formatHex(arg1));
             }
+            case 0x5f -> {
+                bytesConsumed = 0;
+                sb.append("acc = (acc ^ s5) < 1");
+            }
+            case 0x65 -> {
+                bytesConsumed = 0;
+                sb.append("acc = acc < s5");
+            }
+            case 0x67 -> {
+                bytesConsumed = 0;
+                sb.append("acc = s5 < acc");
+            }
+            case 0x69 -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("acc = (acc XOR ").append(HexUtil.formatHex(arg1)).append(" ) < 1");
+            }
+            case 0x6d-> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("inc local var ").append(HexUtil.formatHex(arg1));
+            }
+            case 0x72-> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("--var (").append(HexUtil.formatHex(arg1)).append((")"));
+            }
+            case 0x79-> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("return if acc < 1 || acc > ").append(HexUtil.formatHex(arg1));
+            }
             case 0x7B -> {
                 bytesConsumed = 4;
                 int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
                 String externalName = externalsMap.get(arg1);
-                decodeExternalCall(sb, externalName);
+                decodeRTAExternalCall(sb, externalName);
+            }
+            case 0x7C -> {
+                bytesConsumed = 4;
+                int arg1 = DataUtil.getLEInt(fileData, instructionsOffset + i + bytesConsumed + bodyOffset);
+                sb.append("op7C: ").append(arg1);
             }
             case 0x7D -> {
                 bytesConsumed = 4;
@@ -368,21 +525,56 @@ public class ScriptDecode
         }
     }
 
-    private void decodeExternalCall(StringBuilder sb, String name)
+    private boolean decodeBGDAExternalCall(StringBuilder sb, String name)
     {
+        var decoded = decodeCommonExternalCall(sb, name);
+        if (!decoded){
+            decoded = true;
+            switch (name) {
+                case "activateStore" -> printExternal(sb, name, new char[]{});
+                default -> {decoded=false; sb.append(name).append("( ** unknown args ** )");}
+            }
+        }
+        return decoded;
+    }
+
+    private boolean decodeRTAExternalCall(StringBuilder sb, String name)
+    {
+        var decoded = decodeCommonExternalCall(sb, name);
+        if (!decoded){
+            decoded = true;
+            switch (name) {
+                case "activateStore", "setSaveInhibit", "getMissionComplete", "getMissionAvailable" -> printExternal(sb, name, new char[]{'I'});
+                case "setPlayerFlag" -> printExternal(sb, name, new char[]{'I', 'I', 'I'});
+                case "getPlayerFlag" -> printExternal(sb, name, new char[]{'I', 'I'});
+                case "autoPropSetState", "trigger" -> printExternal(sb, name, new char[]{'S', 'I'});
+                case "onePlayerHasItem" -> printExternal(sb, name, new char[]{'I', 'S'});
+                case "addDeferedCall", "setEntrance", "newWorld", "countQuestItems", "deleteMonster", "hideMonster", "showMonster" -> printExternal(sb, name, new char[]{'S'});
+                case "getNumPlayers", "refillPlayerMana", "activateMissionMenu", "getEvil", "saveCheckPoint" -> printExternal(sb, name, new char[]{});
+                default -> {decoded=false; sb.append(name).append("( ** unknown args ** )");}
+            }
+        }
+        return decoded;
+    }
+
+    private boolean decodeCommonExternalCall(StringBuilder sb, String name)
+    {
+        var decoded = true;
         switch (name) {
             case "addQuest", "addHelpMessage", "soundSequence" -> printExternal(sb, name, new char[]{'S', 'S'});
             case "callScript", "cutScene", "getv", "postAction", "removeQuest" -> printExternal(sb, name, new char[]{'S'});
             case "setv", "givePlayerItem" -> printExternal(sb, name, new char[]{'S', 'I'});
+            case "removePlayerItem" -> printExternal(sb, name, new char[]{'I', 'S'});
             case "startDialog" -> printExternal(sb, name, new char[]{'S', 'S', 'I'});
-            case "givePlayerExp", "givePlayerGold", "grantMission", "hideMonster" -> printExternal(sb, name, new char[]{'I'});
-            case "activateStore", "getScriptState", "checkNewState", "acquireCamera", "releaseCamera", "getRand", "dialogRunning" -> printExternal(sb, name, new char[]{});
+            case "givePlayerExp", "givePlayerGold", "grantMission" -> printExternal(sb, name, new char[]{'I'});
+            case "getScriptState", "checkNewState", "acquireCamera", "releaseCamera", "getRand", "dialogRunning" -> printExternal(sb, name, new char[]{});
             case "loadMonsterSlot" -> printExternal(sb, name, new char[]{'I', 'S', 'I'});
             case "setMissionAvailable" -> printExternal(sb, name, new char[]{'I', 'I'});
             case "moveTalkTarget" -> printExternal(sb, name, new char[]{'I', 'I', 'I'});
             case "setTalkTarget" -> printExternal(sb, name, new char[]{'S', 'I', 'I', 'I', 'I', 'I'});
-            default -> sb.append(name).append("( ** unknown args ** )");
+            default -> {decoded=false; }
         }
+        return decoded;
     }
 
     private void printStringArg(StringBuilder sb, int iarg)
@@ -571,14 +763,26 @@ public class ScriptDecode
 }
 
 /*
-    Notes:
+    Notes BGDA:
 
     s0 = pc
-    a1 = 0(sp) = accumulator
+    a1 = 0(sp) = accumulator. 4(sp) in RTA
     s1
     s2 = var base (also stack bottom)
     s3
-    s6 = stack size (from s2)
+    s6 = stack size (from s2) (from s1 in RTA)
     t4 = var base + s8
     s8 = 0
+
+
+    Notes RTA
+
+    s0 = pc
+    a1 = 4(sp) = accumulator.
+    s1 = var base (also stack bottom)
+    s3
+    s6 = stack size (grows down from s1)
+    t4 = var base + s8
+    s8 = 0
+
  */

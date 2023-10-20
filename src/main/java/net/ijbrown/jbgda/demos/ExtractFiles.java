@@ -30,7 +30,7 @@ public class ExtractFiles
 
         //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "objects");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
-        new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, true, "bf_");
+        new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -51,10 +51,10 @@ public class ExtractFiles
             extractLmps(gameDataPath, extractedPath, gameType);
             extractHDRDATArchives(gameDataPath, extractedPath, gameType);
         }
-        convertTexFiles(extractedPath, gameType, pattern);
-        convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
+        //convertTexFiles(extractedPath, gameType, pattern);
+        //convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
         convertScriptFiles(extractedPath, gameType, pattern);
-        convertObFiles(extractedPath, gameType, pattern);
+        //convertObFiles(extractedPath, gameType, pattern);
     }
 
     public static class FileFinder extends SimpleFileVisitor<Path>
