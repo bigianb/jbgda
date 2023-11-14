@@ -1,5 +1,6 @@
 package net.ijbrown.jbgda.demos;
 
+import net.ijbrown.elf.*;
 import net.ijbrown.jbgda.config.GameConfig;
 import net.ijbrown.jbgda.config.GameConfigs;
 import net.ijbrown.jbgda.config.ModelDef;
@@ -46,6 +47,10 @@ public class ExtractFiles
 
         Files.createDirectories(extractedPath);
 
+        var elfName = config.getElfPath();
+        if (elfName != null) {
+            extractElfResources(FileSystems.getDefault().getPath(elfName), gameDataPath, extractedPath, gameType);
+        }
         if (extractLmps) {
             extractGobs(gameDataPath, extractedPath, gameType);
             extractLmps(gameDataPath, extractedPath, gameType);
@@ -53,7 +58,7 @@ public class ExtractFiles
         }
         //convertTexFiles(extractedPath, gameType, pattern);
         //convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
-        convertScriptFiles(extractedPath, gameType, pattern);
+        //convertScriptFiles(extractedPath, gameType, pattern);
         //convertObFiles(extractedPath, gameType, pattern);
     }
 
@@ -77,6 +82,34 @@ public class ExtractFiles
             }
             return CONTINUE;
         }
+    }
+
+    private void extractElfResources(Path elfPath, Path gameDataPath, Path extractedPath, GameType gameType) throws IOException {
+        var memory = new Memory();
+        Entity entity = new Loader().load(elfPath.toFile());
+        entity.parse();
+
+        int numSections = entity.getSectionCount();
+        for (int sectionIdx=0; sectionIdx < numSections; ++sectionIdx){
+            String sectionName = entity.getSectionName(sectionIdx);
+            Section section = entity.getSection(sectionIdx);
+            if (section.getType() == Section.SHT_PROGBITS){
+                SectHeader header = entity.getSectHeader(sectionIdx);
+                int startAddress = header.sh_addr.value();
+
+                byte[] data=section.getData();
+                if (data != null){
+                    memory.setData(data, startAddress);
+                }
+            }
+        }
+
+        var elfFilename = elfPath.getFileName();
+        var outDirname = elfFilename.toString().replace('.', '_');
+        Logger.info("Extracting {}", outDirname);
+        var outPath = extractedPath.resolve(outDirname);
+        Files.createDirectories(outPath);
+
     }
 
     private void convertVifFiles(Path extractedPath, GameType gameType, String pattern, GameConfig gameConfig) throws IOException {

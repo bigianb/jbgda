@@ -30,6 +30,17 @@ public class Config {
         return rootDir;
     }
 
+    public String getElfPath()
+    {
+        String rootDir = getRootDir();
+        if (gameType == GameType.CHAMPIONS_RTA) {
+            // PAL only
+            return rootDir + "/SLES_530.39";
+        } else {
+            return null;
+        }
+    }
+
     public String getDataDir()
     {
         String rootDir = getRootDir();
