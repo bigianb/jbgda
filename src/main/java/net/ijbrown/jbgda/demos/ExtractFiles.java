@@ -49,7 +49,7 @@ public class ExtractFiles
 
         var elfName = config.getElfPath();
         if (elfName != null) {
-            extractElfResources(FileSystems.getDefault().getPath(elfName), gameDataPath, extractedPath, gameType);
+            extractElfResources(FileSystems.getDefault().getPath(elfName), extractedPath, gameType);
         }
         if (extractLmps) {
             extractGobs(gameDataPath, extractedPath, gameType);
@@ -84,14 +84,13 @@ public class ExtractFiles
         }
     }
 
-    private void extractElfResources(Path elfPath, Path gameDataPath, Path extractedPath, GameType gameType) throws IOException {
+    private Memory loadElf(Path elfPath)throws IOException {
         var memory = new Memory();
         Entity entity = new Loader().load(elfPath.toFile());
         entity.parse();
 
         int numSections = entity.getSectionCount();
         for (int sectionIdx=0; sectionIdx < numSections; ++sectionIdx){
-            String sectionName = entity.getSectionName(sectionIdx);
             Section section = entity.getSection(sectionIdx);
             if (section.getType() == Section.SHT_PROGBITS){
                 SectHeader header = entity.getSectHeader(sectionIdx);
@@ -103,12 +102,38 @@ public class ExtractFiles
                 }
             }
         }
+        return memory;
+    }
+
+    private void extractElfResources(Path elfPath, Path extractedPath, GameType gameType) throws IOException {
+        var memory = loadElf(elfPath);
 
         var elfFilename = elfPath.getFileName();
         var outDirname = elfFilename.toString().replace('.', '_');
         Logger.info("Extracting {}", outDirname);
         var outPath = extractedPath.resolve(outDirname);
         Files.createDirectories(outPath);
+
+        extractSkillTreeInfo(memory, outPath, 0x04f6198, "barbarian");    // PAL
+
+    }
+
+    private void extractSkillTreeInfo(Memory memory, Path outPath, int address, String name) throws IOException {
+
+    class SkillTreeInfoEl {
+        // 0x28 bytes long
+        // Array terminates when x has a value of -1
+        boolean newStyle;
+        byte    unknownOff1;    // offset 1
+
+        long skillId;       // offset 8
+
+        int unkInt10;       // offset 0x10
+
+        long unkLong18;     // offset 0x18
+        int x;              // offset 0x20
+        int y;              // offset 0x24
+    }
 
     }
 
