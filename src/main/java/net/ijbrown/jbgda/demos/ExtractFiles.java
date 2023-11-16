@@ -21,8 +21,7 @@ import static java.nio.file.FileVisitResult.CONTINUE;
     Unpacks the LMP and GOB files and parses the files inside them.
     Writes the results to a sibling directory.
  */
-public class ExtractFiles
-{
+public class ExtractFiles {
     public static void main(String[] args) throws IOException {
 
         // Specify here if you want to extract all the GOB and LMP files (you only need to do this first time).
@@ -62,42 +61,20 @@ public class ExtractFiles
         //convertObFiles(extractedPath, gameType, pattern);
     }
 
-    public static class FileFinder extends SimpleFileVisitor<Path>
-    {
-        private final String ext;
-
-        public List<Path> found = new ArrayList<>();
-
-        FileFinder(String ext)
-        {
-            this.ext = ext;
-        }
-
-        @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attr) {
-            if (attr.isRegularFile()) {
-                if (file.toString().endsWith(ext)){
-                    found.add(file);
-                }
-            }
-            return CONTINUE;
-        }
-    }
-
-    private Memory loadElf(Path elfPath)throws IOException {
+    private Memory loadElf(Path elfPath) throws IOException {
         var memory = new Memory();
         Entity entity = new Loader().load(elfPath.toFile());
         entity.parse();
 
         int numSections = entity.getSectionCount();
-        for (int sectionIdx=0; sectionIdx < numSections; ++sectionIdx){
+        for (int sectionIdx = 0; sectionIdx < numSections; ++sectionIdx) {
             Section section = entity.getSection(sectionIdx);
-            if (section.getType() == Section.SHT_PROGBITS){
+            if (section.getType() == Section.SHT_PROGBITS) {
                 SectHeader header = entity.getSectHeader(sectionIdx);
                 int startAddress = header.sh_addr.value();
 
-                byte[] data=section.getData();
-                if (data != null){
+                byte[] data = section.getData();
+                if (data != null) {
                     memory.setData(data, startAddress);
                 }
             }
@@ -118,23 +95,32 @@ public class ExtractFiles
 
     }
 
-    private void extractSkillTreeInfo(Memory memory, Path outPath, int address, String name) throws IOException {
+    private void extractSkillTreeInfo(Memory memory, Path outDir, int address, String name) throws IOException {
 
-    class SkillTreeInfoEl {
-        // 0x28 bytes long
-        // Array terminates when x has a value of -1
-        boolean newStyle;
-        byte    unknownOff1;    // offset 1
+        var elements = new ArrayList<SkillTreeInfoEl>();
+        var data = memory.getData();
+        var el = SkillTreeInfoEl.read(data, address);
+        while (el.x >= 0){
+            address += 0x28;
+            elements.add(el);
+            el = SkillTreeInfoEl.read(data, address);
+        }
+        Logger.info("read {} elements", elements.size());
+        var outPath = outDir.resolve(name + ".txt");
 
-        long skillId;       // offset 8
-
-        int unkInt10;       // offset 0x10
-
-        long unkLong18;     // offset 0x18
-        int x;              // offset 0x20
-        int y;              // offset 0x24
-    }
-
+        var sb = new StringBuffer();
+        for (var sti : elements){
+            sb.append("{\n");
+            sb.append("    newStyle = " + sti.newStyle + "\n");
+            sb.append("    unknownOff1 = " + sti.unknownOff1 + "\n");
+            sb.append("    skillId = " + sti.skillId + "\n");
+            sb.append("    unkInt10 = " + sti.unkInt10 + "\n");
+            sb.append("    unkLong18 = " + sti.unkLong18 + "\n");
+            sb.append("    x = " + sti.x + "\n");
+            sb.append("    y = " + sti.y + "\n");
+            sb.append("}\n");
+        }
+        Files.writeString(outPath, sb.toString());
     }
 
     private void convertVifFiles(Path extractedPath, GameType gameType, String pattern, GameConfig gameConfig) throws IOException {
@@ -145,7 +131,7 @@ public class ExtractFiles
         Files.walkFileTree(extractedPath, fileFinder);
 
         Logger.info("found {} vif files", fileFinder.found.size());
-        for (var file : fileFinder.found){
+        for (var file : fileFinder.found) {
             if (pattern == null || pattern.isEmpty() || file.toString().contains(pattern)) {
                 Logger.debug("Converting {}", file.toString());
                 try {
@@ -161,20 +147,20 @@ public class ExtractFiles
                     byte[] fileData = Files.readAllBytes(file);
                     List<VifDecode.Mesh> meshList = decoder.decode(fileData, 0);
 
-                    int texW=0;
-                    int texH=0;
-                    String texName=vifFilename.replace(".vif", ".tex");
-                    String pngName=vifFilename.replace(".vif", ".png");
+                    int texW = 0;
+                    int texH = 0;
+                    String texName = vifFilename.replace(".vif", ".tex");
+                    String pngName = vifFilename.replace(".vif", ".png");
 
                     var texPath = outDir.resolve(texName);
-                    if (Files.exists(texPath)){
+                    if (Files.exists(texPath)) {
                         byte[] texData = Files.readAllBytes(texPath);
                         texW = DataUtil.getLEShort(texData, 0);
                         texH = DataUtil.getLEShort(texData, 2);
                     }
 
                     List<AnmData> anmList = new ArrayList<>();
-                    for(var anmPath : anmFinder.found){
+                    for (var anmPath : anmFinder.found) {
                         var anmName = anmPath.getFileName().toString();
                         boolean include = modelDef.hasAnimation(anmName);
                         if (vifFilename.startsWith("projectile") && !anmName.startsWith("projectile")) {
@@ -183,7 +169,7 @@ public class ExtractFiles
                         if (vifFilename.startsWith("ant") && (anmName.startsWith("projectile") || anmName.startsWith("spel"))) {
                             include = false;
                         }
-                        if (include){
+                        if (include) {
                             byte[] anmFileData = Files.readAllBytes(anmPath);
                             AnmDecoder anmDecoder = new AnmDecoder();
                             var anmData = anmDecoder.decode(gameType, anmFileData, 0, anmFileData.length);
@@ -211,7 +197,7 @@ public class ExtractFiles
         Files.walkFileTree(extractedPath, texFileFinder);
 
         Logger.info("found {} tex files", texFileFinder.found.size());
-        for (var texFile : texFileFinder.found){
+        for (var texFile : texFileFinder.found) {
             if (pattern == null || pattern.isEmpty() || texFile.toString().contains(pattern)) {
                 Logger.debug("Converting {}", texFile.toString());
                 try {
@@ -230,7 +216,7 @@ public class ExtractFiles
         var outDir = texPath.getParent();
         var txtFilename = texFilename.replace(".tex", "_tex.txt");
         var outPath = outDir.resolve(txtFilename);
-        try (var writer = new FileWriter(outPath.toFile())){
+        try (var writer = new FileWriter(outPath.toFile())) {
             texLogger.log(texPath, writer);
         }
     }
@@ -240,7 +226,7 @@ public class ExtractFiles
         Files.walkFileTree(extractedPath, fileFinder);
 
         Logger.info("found {} ob files", fileFinder.found.size());
-        for (var file : fileFinder.found){
+        for (var file : fileFinder.found) {
             if (pattern == null || pattern.isEmpty() || file.toString().contains(pattern)) {
                 Logger.debug("Converting {}", file.toString());
                 logObFile(file);
@@ -255,7 +241,7 @@ public class ExtractFiles
         var outPath = outDir.resolve(txtFilename);
 
         byte[] obData = Files.readAllBytes(path);
-        var out =  ObLogger.log(obData);
+        var out = ObLogger.log(obData);
         Files.writeString(outPath, out);
     }
 
@@ -266,7 +252,7 @@ public class ExtractFiles
         Files.walkFileTree(extractedPath, fileFinder);
 
         Logger.info("found {} scr files", fileFinder.found.size());
-        for (var file : fileFinder.found){
+        for (var file : fileFinder.found) {
             if (pattern == null || pattern.isEmpty() || file.toString().contains(pattern)) {
                 Logger.debug("Converting {}", file.toString());
                 try {
@@ -290,7 +276,7 @@ public class ExtractFiles
     private void extractLmps(Path gameDataPath, Path extractedPath, GameType gameType) throws IOException {
         var extractor = new LmpExtractor(gameType);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(gameDataPath, "*.LMP")) {
-            for (Path entry: stream) {
+            for (Path entry : stream) {
                 var lmpFilename = entry.getFileName();
                 Logger.info("Extracting {}", lmpFilename);
                 var outDirname = lmpFilename.toString().replace('.', '_');
@@ -304,7 +290,7 @@ public class ExtractFiles
     private void extractGobs(Path gameDataPath, Path extractedPath, GameType gameType) throws IOException {
         var extractor = new GobExtractor(gameType);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(gameDataPath, "*.GOB")) {
-            for (Path entry: stream) {
+            for (Path entry : stream) {
                 var gobFilename = entry.getFileName();
                 Logger.info("Extracting {}", gobFilename);
                 var outDirname = gobFilename.toString().replace('.', '_');
@@ -318,7 +304,7 @@ public class ExtractFiles
     private void extractHDRDATArchives(Path gameDataPath, Path extractedPath, GameType gameType) throws IOException {
         var extractor = new HdrDatExtractor(gameType);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(gameDataPath, "*.HDR")) {
-            for (Path hdrPath: stream) {
+            for (Path hdrPath : stream) {
                 var hdrFilename = hdrPath.getFileName().toString();
                 Logger.info("Extracting {}", hdrFilename);
                 var outDirname = hdrFilename.replace('.', '_');
@@ -333,6 +319,26 @@ public class ExtractFiles
             }
         }
 
+    }
+
+    public static class FileFinder extends SimpleFileVisitor<Path> {
+        private final String ext;
+
+        public List<Path> found = new ArrayList<>();
+
+        FileFinder(String ext) {
+            this.ext = ext;
+        }
+
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attr) {
+            if (attr.isRegularFile()) {
+                if (file.toString().endsWith(ext)) {
+                    found.add(file);
+                }
+            }
+            return CONTINUE;
+        }
     }
 
 }
