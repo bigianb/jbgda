@@ -28,9 +28,9 @@ public class ExtractFiles {
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
         // that pattern (useful for debugging).
 
-        //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "objects");
+        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
-        new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "");
+        //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -91,8 +91,29 @@ public class ExtractFiles {
         var outPath = extractedPath.resolve(outDirname);
         Files.createDirectories(outPath);
 
-        extractSkillTreeInfo(memory, outPath, 0x04f6198, "barbarian");    // PAL
+        if (gameType == GameType.CHAMPIONS_RTA) {
+            extractSkillTreeInfo(memory, outPath, 0x04f6198, "barbarian");    // PAL
+        } else if (gameType == GameType.DARK_ALLIANCE) {
+            extractElfTex(memory, outPath, 0x25b6f0, "tex_25b6f0.tex");
+            extractElfTex(memory, outPath, 0x2346a0, "tex_2346a0.tex");
+            extractElfTex(memory, outPath, 0x26be10, "tex_26be10.tex");
+            extractElfTex(memory, outPath, 0x2922e0, "tex_2922e0.tex");
+            extractElfTex(memory, outPath, 0x292cc0, "tex_292cc0.tex");
+            extractElfTex(memory, outPath, 0x275d40, "tex_275d40.tex");
+            extractElfTex(memory, outPath, 0x295cf0, "tex_295cf0.tex");
+        }
 
+    }
+
+    private void extractElfTex(Memory memory, Path outDir, int address, String name) throws IOException {
+
+        TexDecode decoder = new TexDecode();
+        var data = memory.getData();
+        try {
+            decoder.extract(outDir, data, address, name, 0);
+        } catch (RuntimeException e) {
+            Logger.info("Failed to convert {}", name);
+        }
     }
 
     private void extractSkillTreeInfo(Memory memory, Path outDir, int address, String name) throws IOException {

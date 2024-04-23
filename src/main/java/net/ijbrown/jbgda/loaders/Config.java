@@ -36,6 +36,8 @@ public class Config {
         if (gameType == GameType.CHAMPIONS_RTA) {
             // PAL only
             return rootDir + "/SLES_530.39";
+        } else if (gameType == GameType.DARK_ALLIANCE) {
+            return rootDir + "/SLES_506.72";
         } else {
             return null;
         }
