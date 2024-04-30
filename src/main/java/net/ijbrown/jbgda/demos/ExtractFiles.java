@@ -28,7 +28,7 @@ public class ExtractFiles {
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
         // that pattern (useful for debugging).
 
-        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "");
+        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, true, "");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
         //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "");
     }
@@ -55,6 +55,7 @@ public class ExtractFiles {
             extractLmps(gameDataPath, extractedPath, gameType);
             extractHDRDATArchives(gameDataPath, extractedPath, gameType);
         }
+        convertFntFiles(extractedPath, gameType, pattern);
         //convertTexFiles(extractedPath, gameType, pattern);
         //convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
         //convertScriptFiles(extractedPath, gameType, pattern);
@@ -101,8 +102,23 @@ public class ExtractFiles {
             extractElfTex(memory, outPath, 0x292cc0, "tex_292cc0.tex");
             extractElfTex(memory, outPath, 0x275d40, "tex_275d40.tex");
             extractElfTex(memory, outPath, 0x295cf0, "tex_295cf0.tex");
+            extractElfFnt(memory, outPath, 0x0023a970, "fnt_0023a970.tex");
+            extractElfFnt(memory, outPath, 0x00245840, "fnt_00245840.tex");
+            extractElfFnt(memory, outPath, 0x0024e910, "fnt_0024e910.tex");
         }
 
+    }
+
+    private void extractElfFnt(Memory memory, Path outDir, int address, String name) throws IOException {
+        var data = memory.getData();
+        var fontTexOffset = DataUtil.getLEInt(data, address + 0x10);
+        TexDecode decoder = new TexDecode();
+        try {
+            decoder.extract(outDir, data, address+fontTexOffset, name, 0);
+        } catch (RuntimeException e) {
+            Logger.info("Failed to convert {}", name);
+            Logger.error(e);
+        }
     }
 
     private void extractElfTex(Memory memory, Path outDir, int address, String name) throws IOException {
@@ -113,6 +129,7 @@ public class ExtractFiles {
             decoder.extract(outDir, data, address, name, 0);
         } catch (RuntimeException e) {
             Logger.info("Failed to convert {}", name);
+            Logger.error(e);
         }
     }
 
@@ -210,6 +227,32 @@ public class ExtractFiles {
             }
         }
     }
+
+    private void convertFntFiles(Path extractedPath, GameType gameType, String pattern) throws IOException {
+
+        TexDecode decoder = new TexDecode();
+
+        var fileFinder = new FileFinder(".fnt");
+        Files.walkFileTree(extractedPath, fileFinder);
+
+        Logger.info("found {} fnt files", fileFinder.found.size());
+        for (var file : fileFinder.found) {
+            if (pattern == null || pattern.isEmpty() || file.toString().contains(pattern)) {
+                Logger.debug("Converting {}", file.toString());
+                try {
+                    var filename = file.getFileName().toString();
+                    var outDir = file.getParent();
+
+                    byte[] fileData = Files.readAllBytes(file);
+                    var fontTexOffset = DataUtil.getLEInt(fileData,  0x10);
+                    decoder.extract(outDir, fileData, fontTexOffset, filename+".tex", 0);
+                } catch (RuntimeException e) {
+                    Logger.info("Failed to convert {}", file.toString());
+                }
+            }
+        }
+    }
+
 
     private void convertTexFiles(Path extractedPath, GameType gameType, String pattern) throws IOException {
         TexDecode decoder = new TexDecode();
