@@ -12,11 +12,11 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <main.class>net.ijbrown.jbgda.demos.ViewChest</main.class>
         <!-- Versions -->
-        <java.version>20</java.version>
+        <java.version>25</java.version>
 		
-        <imgui-java.version>1.86.6</imgui-java.version>
-        <joml.version>1.10.4</joml.version>
-        <lwjgl.version>3.3.1</lwjgl.version>
+        <imgui-java.version>1.90.0</imgui-java.version>
+        <joml.version>1.10.8</joml.version>
+        <lwjgl.version>3.4.1</lwjgl.version>
         <maven-compiler-plugin.version>3.9.0</maven-compiler-plugin.version>
         <maven-dependency-plugin.version>3.2.0</maven-dependency-plugin.version>
         <maven-jar-plugin.version>3.2.2</maven-jar-plugin.version>
@@ -26,6 +26,27 @@
     </properties>
     
     <profiles>
+        <profile>
+            <id>lwjgl-natives-linux-amd64</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                    <name>linux</name>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <lwjgl.natives>natives-linux</lwjgl.natives>
+            </properties>
+            <dependencies>
+                <dependency>
+                    <groupId>io.github.spair</groupId>
+                    <artifactId>imgui-java-natives-linux</artifactId>
+                    <version>${imgui-java.version}</version>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+        </profile>
         <profile>
             <id>lwjgl-natives-windows-amd64</id>
             <activation>
@@ -294,7 +315,7 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>RELEASE</version>
+            <version>6.0.3</version>
             <scope>test</scope>
         </dependency>
 

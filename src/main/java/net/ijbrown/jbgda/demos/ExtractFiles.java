@@ -28,9 +28,10 @@ public class ExtractFiles {
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
         // that pattern (useful for debugging).
 
-        new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, true, "");
+        //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, true, "");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
         //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "");
+        new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "faydark1");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -55,11 +56,11 @@ public class ExtractFiles {
             extractLmps(gameDataPath, extractedPath, gameType);
             extractHDRDATArchives(gameDataPath, extractedPath, gameType);
         }
-        convertFntFiles(extractedPath, gameType, pattern);
-        //convertTexFiles(extractedPath, gameType, pattern);
-        //convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
-        //convertScriptFiles(extractedPath, gameType, pattern);
-        //convertObFiles(extractedPath, gameType, pattern);
+        //convertFntFiles(extractedPath, gameType, pattern);
+        convertTexFiles(extractedPath, gameType, pattern);
+        convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
+        convertScriptFiles(extractedPath, gameType, pattern);
+        convertObFiles(extractedPath, gameType, pattern);
     }
 
     private Memory loadElf(Path elfPath) throws IOException {
@@ -146,16 +147,16 @@ public class ExtractFiles {
         Logger.info("read {} elements", elements.size());
         var outPath = outDir.resolve(name + ".txt");
 
-        var sb = new StringBuffer();
+        var sb = new StringBuilder();
         for (var sti : elements){
             sb.append("{\n");
-            sb.append("    newStyle = " + sti.newStyle + "\n");
-            sb.append("    unknownOff1 = " + sti.unknownOff1 + "\n");
-            sb.append("    skillId = " + sti.skillId + "\n");
-            sb.append("    unkInt10 = " + sti.unkInt10 + "\n");
-            sb.append("    unkLong18 = " + sti.unkLong18 + "\n");
-            sb.append("    x = " + sti.x + "\n");
-            sb.append("    y = " + sti.y + "\n");
+            sb.append("    newStyle = ").append(sti.newStyle).append("\n");
+            sb.append("    unknownOff1 = ").append(sti.unknownOff1).append("\n");
+            sb.append("    skillId = ").append(sti.skillId).append("\n");
+            sb.append("    unkInt10 = ").append(sti.unkInt10).append("\n");
+            sb.append("    unkLong18 = ").append(sti.unkLong18).append("\n");
+            sb.append("    x = ").append(sti.x).append("\n");
+            sb.append("    y = ").append(sti.y).append("\n");
             sb.append("}\n");
         }
         Files.writeString(outPath, sb.toString());

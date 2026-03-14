@@ -15,7 +15,7 @@ public class Config {
         String osName = System.getProperty("os.name").toLowerCase();
         boolean isMacOs = osName.startsWith("mac os x");
 
-        String rootDir = "/emu/bgda";
+        String rootDir = "/emu";
         if (isMacOs){
             String home = System.getProperty("user.home");
             rootDir = home + "/ps2_games";

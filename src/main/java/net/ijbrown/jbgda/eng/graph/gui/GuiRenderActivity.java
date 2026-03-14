@@ -180,7 +180,7 @@ public class GuiRenderActivity {
             for (int i = 0; i < numCmdLists; i++) {
                 int cmdBufferSize = imDrawData.getCmdListCmdBufferSize(i);
                 for (int j = 0; j < cmdBufferSize; j++) {
-                    imDrawData.getCmdListCmdBufferClipRect(i, j, imVec4);
+                    imDrawData.getCmdListCmdBufferClipRect(imVec4, i, j );
                     rect.offset(it -> it.x((int) Math.max(imVec4.x, 0)).y((int) Math.max(imVec4.y, 1)));
                     rect.extent(it -> it.width((int) (imVec4.z - imVec4.x)).height((int) (imVec4.w - imVec4.y)));
                     vkCmdSetScissor(cmdHandle, 0, rect);
