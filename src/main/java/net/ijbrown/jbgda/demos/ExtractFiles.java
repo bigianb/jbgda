@@ -31,7 +31,7 @@ public class ExtractFiles {
         //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, true, "");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
         //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "");
-        new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "faydark1");
+        new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -61,6 +61,7 @@ public class ExtractFiles {
         convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
         convertScriptFiles(extractedPath, gameType, pattern);
         convertObFiles(extractedPath, gameType, pattern);
+        convertWorldFiles(gameDataPath, extractedPath, gameType, pattern);
     }
 
     private Memory loadElf(Path elfPath) throws IOException {
@@ -284,6 +285,30 @@ public class ExtractFiles {
         try (var writer = new FileWriter(outPath.toFile())) {
             texLogger.log(texPath, writer);
         }
+    }
+
+    private void convertWorldFiles(Path gameDataPath, Path extractedPath, GameType gameType, String pattern) throws IOException {
+        var fileFinder = new FileFinder(".world");
+        Files.walkFileTree(extractedPath, fileFinder);
+
+        Logger.info("found {} world files", fileFinder.found.size());
+        for (var file : fileFinder.found) {
+            if (pattern == null || pattern.isEmpty() || file.toString().contains(pattern)) {
+                Logger.debug("Converting {}", file.toString());
+                logWorldFile(gameDataPath, file, gameType);
+            }
+        }
+    }
+
+    private void logWorldFile(Path gameDataPath, Path path, GameType gameType) throws IOException {
+        var filename = path.getFileName().toString();
+        var outDir = path.getParent();
+        var worldName = filename.replace(".world", "");
+        var levelTexPath = gameDataPath.resolve(worldName + ".tex");
+
+        byte[] worldData = Files.readAllBytes(path);
+        var decoder = new WorldDecode(gameType);
+        decoder.decode(worldData, outDir, levelTexPath, worldName);
     }
 
     private void convertObFiles(Path extractedPath, GameType gameType, String pattern) throws IOException {
