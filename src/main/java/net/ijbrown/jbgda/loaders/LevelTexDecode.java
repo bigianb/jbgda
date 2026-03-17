@@ -18,51 +18,36 @@ package net.ijbrown.jbgda.loaders;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Decodes an worldname.tex file.
+ * Decodes a worldname.tex file.
  */
 public class LevelTexDecode
 {
-    public static void main(String[] args) throws IOException
-    {
-        String inDir = "/emu/BG/DATA/";
-
-        String outDir = "/emu/BG/DATA_extracted/cellar1/cellar1_lmp/";
-
-        File outDirFile = new File(outDir);
-        outDirFile.mkdirs();
-
-        File inDirFile = new File(inDir);
-
-        LevelTexDecode obj = new LevelTexDecode();
-        obj.read("cellar1.tex", inDirFile);
-        String txt;
-        txt = obj.disassemble(outDirFile);
-        obj.writeFile("cellar1.tex.txt", outDirFile, txt);
-
-        obj.extract(new File(outDirFile, "cellar1.tex.png"), 0x840);
-        obj.extract(new File(outDirFile, "cellar1_1.tex.png"), 0x11840);
-        obj.extract(new File(outDirFile, "cellar1_2.tex.png"), 0x22840);
-        obj.extract(new File(outDirFile, "cellar1_3.tex.png"), 0x2E040);
-        obj.extract(new File(outDirFile, "cellar1_4.tex.png"), 0x36840);
-        obj.extract(new File(outDirFile, "cellar1_5.tex.png"), 0x36880);
-        obj.extract(new File(outDirFile, "cellar1_6.tex.png"), 0x368C0);
-        obj.extract(new File(outDirFile, "cellar1_7.tex.png"), 0x36900);
-        obj.extract(new File(outDirFile, "cellar1_8.tex.png"), 0x36940);
-        obj.extract(new File(outDirFile, "cellar1_9.tex.png"), 0x36980);
-    }
-
-    private void writeFile(String filename, File outDirFile, String txt) throws IOException
-    {
-        File file = new File(outDirFile, filename);
-        PrintWriter writer = new PrintWriter(file);
-        writer.print(txt);
-        writer.close();
-    }
-
-    private int fileLength;
+    private final GameType gameType;
     private byte[] fileData;
+
+    private static class TexEntry
+    {
+        public int cellOffset;
+        public int directoryOffset;
+        public int size;
+
+        public TexEntry(int cellOffset, int directoryOffset, int size) {
+
+            this.cellOffset = cellOffset;
+            this.directoryOffset = directoryOffset;
+            this.size = size;
+        }
+    }
+
+    private final List<TexEntry> texEntries = new ArrayList<>();
+
+    public LevelTexDecode(GameType gameType) {
+        this.gameType = gameType;
+    }
 
     public void read(String filename, File dir) throws IOException
     {
@@ -74,7 +59,7 @@ public class LevelTexDecode
     {
         BufferedInputStream is = new BufferedInputStream(new FileInputStream(file));
 
-        fileLength = (int) file.length();
+        int fileLength = (int) file.length();
         fileData = new byte[fileLength];
 
         int offset = 0;
@@ -86,6 +71,24 @@ public class LevelTexDecode
             }
             remaining -= read;
             offset += read;
+        }
+        if (gameType != GameType.DARK_ALLIANCE){
+            readEntries();
+        }
+    }
+
+    private void readEntries()
+    {
+        int offset = 4;
+        int cellOffset = 0;
+        while (cellOffset >= 0) {
+            cellOffset = DataUtil.getLEInt(fileData, offset);
+            int dirOffset = DataUtil.getLEInt(fileData, offset + 4);
+            int size = DataUtil.getLEInt(fileData, offset + 8);
+            offset += 12;
+            if (cellOffset >= 0){
+                texEntries.add(new TexEntry(cellOffset, dirOffset, size));
+            }
         }
     }
 
@@ -100,21 +103,62 @@ public class LevelTexDecode
         return DataUtil.getLEInt(fileData, offset);
     }
 
-    public void extract(File outputfile, int offset) throws IOException
+    public void extractAll(File outDirFile) throws IOException
     {
+        for (var entry : texEntries){
+            int numTexturesInEntry = DataUtil.getLEInt(fileData, entry.directoryOffset);
+            for (int i=0; i<numTexturesInEntry; ++i) {
+                int offset = entry.directoryOffset + (i + 1) * 64;
+
+                File outFile = new File(outDirFile, "leveltex_"+entry.cellOffset + "_" + i + ".png");
+                extract(outFile, offset, entry.directoryOffset);
+            }
+        }
+    }
+
+    private int convertOffset(int offIn, int segmentStartOffset, int directoryEntryOffset)
+    {
+        // Dark Alliance encodes pointers as offsets from the entry in the texture entry table.
+        // Return to arms (more sensibly) encodes pointers as offsets from the current chunk loaded from the disc.
+        if (gameType == GameType.DARK_ALLIANCE ){
+            return offIn + directoryEntryOffset;
+        } else {
+            return offIn + segmentStartOffset;
+        }
+    }
+
+
+    public void extract(File outputfile, int offset, int chunkStartOffset) throws IOException
+    {
+        var deltaOffset = convertOffset(0, chunkStartOffset, offset);
+
         int pixelWidth = DataUtil.getLEUShort(fileData, offset);
         int pixelHeight = DataUtil.getLEUShort(fileData, offset + 2);
         int header10 = DataUtil.getLEInt(fileData, offset + 0x10);
-        int compressedDataLen = DataUtil.getLEInt(fileData, offset + 0x14);
-        int compressedDataOffset = header10 + offset;
-        int palOffset = DataUtil.getLEInt(fileData, compressedDataOffset) + offset;
+        int flags = DataUtil.getLEUShort(fileData, offset + 8);
+
+        boolean compressed = (flags & 0x1) == 0x01;
+        boolean flag100 = (flags & 0x100) == 0x0100;
+
+        if (!compressed){
+            return;
+        }
+
+        int compressedDataOffset = header10 + deltaOffset;
+        int palOffset = DataUtil.getLEInt(fileData, compressedDataOffset) + deltaOffset;
         if (compressedDataOffset <= 0 || compressedDataOffset >= fileData.length)
         {
             return;
         }
+        int decodeOffset = palOffset + 0xc00;
+        if (gameType == GameType.CHAMPIONS_OF_NORRATH){
+            int offNext = DataUtil.getLEUShort(fileData, palOffset);
+            palOffset += 4;
+            decodeOffset = palOffset + offNext * 4;
+        }
         PalEntry[] palette = PalEntry.readPalette(fileData, palOffset, 16, 16);
         palette = PalEntry.unswizzlePalette(palette);
-        HuffVal[] huffVals = decode(palOffset + 0xc00);
+        HuffVal[] huffVals = decode(decodeOffset);
 
         int width = (pixelWidth + 0x0f) & ~0x0f;
         int height = (pixelHeight + 0x0f) & ~0x0f;
@@ -132,7 +176,7 @@ public class LevelTexDecode
 
             for (int yblock = y0; yblock <=y1; ++yblock) {
                 for (int xblock = x0; xblock <=x1; ++xblock) {
-                    int blockDataStart = DataUtil.getLEInt(fileData, p) + offset;
+                    int blockDataStart = DataUtil.getLEInt(fileData, p) + deltaOffset;
                     decodeBlock(xblock, yblock, blockDataStart, palOffset + 0x400, image, palette, huffVals);
                     p += 4;
                 }
@@ -141,7 +185,7 @@ public class LevelTexDecode
         ImageIO.write(image, "png", outputfile);
     }
 
-    private int[] backJumpTable = new int[]{-1, -16, -17, -15, -2};
+    private final int[] backJumpTable = new int[]{-1, -16, -17, -15, -2};
 
     private void decodeBlock(int xblock, int yblock, int blockDataStart, int table0Start, BufferedImage image, PalEntry[] palette, HuffVal[] huffVals)
     {
@@ -213,149 +257,13 @@ public class LevelTexDecode
         }
     }
 
-    private String disassemble(File outDirFile)
-    {
-        return disassemble(outDirFile, 0x840);
-    }
-
-    private String disassemble(File outDirFile, int offset)
-    {
-        StringBuilder sb = new StringBuilder();
-
-        int header10 = DataUtil.getLEInt(fileData, offset + 0x10);
-        int headerOffset10 = header10 + offset;
-
-        sb.append("Header 10: ").append(HexUtil.formatHex(header10)).append(" (").append(HexUtil.formatHex(headerOffset10)).append(")\r\n");
-
-        int palOffset = DataUtil.getLEInt(fileData, headerOffset10) + offset;
-
-        sb.append("Pal Offset:  ").append(HexUtil.formatHex(palOffset)).append("\r\n");
-        sb.append("Palette:");
-
-        for (int i = 0; i < 0x400; i += 4) {
-            int off = i + palOffset;
-            int val = DataUtil.getLEInt(fileData, off);
-            if ((i & 0x1f) == 0) {
-                sb.append("\r\n").append(HexUtil.formatHex(off)).append(": ");
-            } else {
-                sb.append(", ");
-            }
-            sb.append(HexUtil.formatHex(val));
-        }
-        sb.append("\r\n");
-        sb.append("\r\nUnknown:");
-        for (int i = 0; i < 0x800; i += 4) {
-            int off = i + palOffset + 0x400;
-            int val = DataUtil.getLEInt(fileData, off);
-            if ((i & 0x1f) == 0) {
-                sb.append("\r\n").append(HexUtil.formatHex(off)).append(": ");
-            } else {
-                sb.append(", ");
-            }
-            sb.append(HexUtil.formatHex(val));
-        }
-        sb.append("\r\n\r\n");
-
-        int c00 = DataUtil.getLEInt(fileData, palOffset + 0xc00);
-        sb.append(HexUtil.formatHex(palOffset + 0xc00)).append(": ").append("pal + 0xc00:  ").append(HexUtil.formatHex(c00)).append("\r\n");
-        sb.append("\r\n");
-
-        int c04_offset = palOffset + 0xc04;
-        sb.append("pal + 0xc04:  ").append(HexUtil.formatHex(c04_offset));
-
-        for (int i = 0; i < c00 * 2; i += 2) {
-            int off = i + c04_offset;
-            int val = DataUtil.getLEUShort(fileData, off);
-            if ((i & 0x0f) == 0) {
-                sb.append("\r\n").append(HexUtil.formatHex(off)).append(": ");
-            } else {
-                sb.append(", ");
-            }
-            sb.append(HexUtil.formatHexUShort(val));
-        }
-
-        sb.append("\r\n");
-        int bf84 = c04_offset + c00 * 2;
-        sb.append("bf84:  ").append(HexUtil.formatHex(bf84)).append("\r\n");
-
-        for (int i = 0; i < 0x48; i += 4) {
-            int off = i + c04_offset + c00 * 2;
-            int val = DataUtil.getLEInt(fileData, off);
-            if ((i & 0x0f) == 0) {
-                sb.append("\r\n").append(HexUtil.formatHex(off)).append(": ");
-            } else {
-                sb.append(", ");
-            }
-            sb.append(HexUtil.formatHex(val));
-        }
-        sb.append("\r\n");
-
-        for (int i = 0; i < 0x44; i += 4) {
-            int off = i + c04_offset + c00 * 2 + 0x48;
-            int val = DataUtil.getLEInt(fileData, off);
-            if ((i & 0x0f) == 0) {
-                sb.append("\r\n").append(HexUtil.formatHex(off)).append(": ");
-            } else {
-                sb.append(", ");
-            }
-            sb.append(HexUtil.formatHex(val));
-        }
-        sb.append("\r\n").append("\r\n");
-
-        for (int i = 0; i < 0x400; i += 2) {
-            int off = i + c04_offset + c00 * 2 + 0x48 + 0x44;
-            int val = DataUtil.getLEUShort(fileData, off);
-            if ((i & 0x0f) == 0) {
-                sb.append("\r\n").append(HexUtil.formatHex(off)).append(": ");
-            } else {
-                sb.append(", ");
-            }
-            sb.append(HexUtil.formatHexUShort(val));
-        }
-
-        sb.append("\r\n").append("\r\n");
-
-        int p = headerOffset10 + 4;
-        while (fileData[p] != -1) {
-            int x0 = fileData[p];
-            int y0 = fileData[p + 1];
-            int x1 = fileData[p + 2];
-            int y1 = fileData[p + 3];
-
-
-            sb.append(HexUtil.formatHex(p)).append(": x0, y0, x1, y1 ").append(x0).append(", ");
-            sb.append(y0).append(", ");
-            sb.append(x1).append(", ");
-            sb.append(y1).append(", ");
-
-            p += 4;
-            int wBlocks = x1 - x0 + 1;
-            int hBlocks = y1 - y0 + 1;
-
-            for (int i = 0; i < wBlocks * hBlocks; ++i) {
-                int poff = DataUtil.getLEInt(fileData, p) + offset;
-                sb.append(HexUtil.formatHex(poff)).append("\r\n");
-                p += 4;
-            }
-        }
-
-        sb.append("\r\nDecoded huffVals:\r\n");
-        HuffVal[] huffVals = decode(palOffset + 0xc00);
-        int i = 0;
-        for (HuffVal huffVal : huffVals) {
-            sb.append(i++).append(": ").append(huffVal.val).append(", ").append(huffVal.numBits).append("\r\n");
-        }
-
-        return sb.toString();
-    }
-
-    class HuffVal
+    static class HuffVal
     {
         public short val;
         public short numBits;
     }
 
-    public HuffVal[] decode(int tableOffset)
+    private HuffVal[] decode(int tableOffset)
     {
         HuffVal[] out = new HuffVal[256];
 

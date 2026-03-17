@@ -210,32 +210,34 @@ public class WorldDecode
         int megatileRoot =  DataUtil.getLEInt(fileData, 0x70);
         sb.append("megatileRoot: ").append(HexUtil.formatHex(megatileRoot)).append("\r\n");
 
-        sb.append("-----------------------------------------------------\r\n");
-        sb.append("\r\n");
-        sb.append("Per cell topo elements array. Each index points to an entry in array 20.\r\n \r\n");
-        for (int i = 0; i < rows * cols; ++i) {
-            int off = DataUtil.getLEInt(fileData, perCellTopoElements + i * 4);
-            sb.append(i).append(" : ").append(HexUtil.formatHex(off)).append(" -> ");
-            if (gameType == GameType.DARK_ALLIANCE) {
-                int u = DataUtil.getLEShort(fileData, off);
-                while (u >= 0) {
-                    sb.append(u);
-                    off += 2;
-                    u = DataUtil.getLEShort(fileData, off);
-                    if (u >= 0) {
-                        sb.append(", ");
+        if (gameType == GameType.DARK_ALLIANCE) {
+            sb.append("-----------------------------------------------------\r\n");
+            sb.append("\r\n");
+            sb.append("Per cell topo elements array. Each index points to an entry in array 20.\r\n \r\n");
+            for (int i = 0; i < rows * cols; ++i) {
+                int off = DataUtil.getLEInt(fileData, perCellTopoElements + i * 4);
+                sb.append(i).append(" : ").append(HexUtil.formatHex(off)).append(" -> ");
+                if (gameType == GameType.DARK_ALLIANCE) {
+                    int u = DataUtil.getLEShort(fileData, off);
+                    while (u >= 0) {
+                        sb.append(u);
+                        off += 2;
+                        u = DataUtil.getLEShort(fileData, off);
+                        if (u >= 0) {
+                            sb.append(", ");
+                        }
                     }
                 }
+                sb.append("\r\n");
             }
-            sb.append("\r\n");
         }
-
         List<Integer> linkedObjects = new ArrayList<>();
 
         sb.append("-----------------------------------------------------\r\n");
         sb.append("\r\n");
         sb.append("Topo Element array - ").append(numTopoElements).append(" elements\r\n \r\n");
-        for (int i = 0; i < numTopoElements; ++i) {
+        int maxDisplay = Math.min(numTopoElements, 2);
+        for (int i = 0; i < maxDisplay; ++i) {
             int off = topoElementsOffset + i * 0x1c;
             sb.append(i).append(" : ").append(HexUtil.formatHex(off)).append("{\r\n");
             sb.append("    0x00: ").append(DataUtil.getLEShort(fileData, off + 0x00)).append("\r\n");
@@ -302,12 +304,10 @@ public class WorldDecode
         sb.append("-----------------------------------------------------\r\n");
         sb.append("\r\n");
         sb.append("Elements (24) array - ").append(numElements).append(" elements\r\n \r\n");
-        for (int i = 0; i < numElements; ++i) {
-            int off=0;
+        for (int i = 0; i < Math.min(numElements, 2); ++i) {
+            int off = polysets + i * 0x3C;
             if (gameType == GameType.DARK_ALLIANCE) {
                 off = polysets + i * 0x38;
-            } else {
-                off = polysets + i * 0x3C;
             }
             sb.append(i).append(" : ").append(HexUtil.formatHex(off)).append("{\r\n");
             // offset 0 points to a vif mesh object. Mesh data starts at offset 0x20.
@@ -404,13 +404,31 @@ public class WorldDecode
             }
             sb.append("\r\n");
         }
-
-        decodeTextureGrid(sb, levelTexFile, outDirFile);
-
+        if (gameType == GameType.DARK_ALLIANCE) {
+            decodeTextureGridBGDA(sb, levelTexFile, outDirFile);
+        } else {
+            decodeLevelTexture(sb, levelTexFile, outDirFile);
+        }
         return sb.toString();
     }
 
-    private void decodeTextureGrid(StringBuilder sb, File levelTexFile, File outDirFile)
+    private void decodeLevelTexture(StringBuilder sb, File levelTexFile, File outDirFile)
+    {
+        LevelTexDecode levelTexDecoder = new LevelTexDecode(gameType);
+        try {
+            levelTexDecoder.read(levelTexFile);
+        } catch (IOException ioe){
+            sb.append("Failed to read level texture ").append(levelTexFile.getName());
+            return;
+        }
+        try {
+            levelTexDecoder.extractAll(outDirFile);
+        } catch (IOException ioe){
+            sb.append("Failed export level texture ").append(levelTexFile.getName());
+        }
+    }
+
+    private void decodeTextureGridBGDA(StringBuilder sb, File levelTexFile, File outDirFile)
     {
         sb.append("-----------------------------------------------------\r\n");
         sb.append("\r\n");
@@ -428,11 +446,12 @@ public class WorldDecode
         // data length. Each row is 100 entries long. The number of rows is given by the values in 0x58 and 0x5C
         int textureArrayOffset = DataUtil.getLEInt(fileData, 0x64);
 
-        LevelTexDecode levelTexDecoder = new LevelTexDecode();
+        LevelTexDecode levelTexDecoder = new LevelTexDecode(gameType);
         boolean canExportTextures=true;
         try {
             levelTexDecoder.read(levelTexFile);
         } catch (IOException ioe){
+            sb.append("Failed to read level texture ").append(levelTexFile.getName());
             canExportTextures=false;
         }
         for (int y=ymin; y<=ymax; ++y){
@@ -448,7 +467,7 @@ public class WorldDecode
                     for (int i=1; i<=n; ++i){
                         File outFile = new File(outDirFile, Integer.toString(x)+ y +'_'+ i +".png");
                         try {
-                            levelTexDecoder.extract(outFile, texOffset + 0x40*i);
+                            levelTexDecoder.extract(outFile, texOffset + 0x40*i, texOffset);
                         } catch (IOException ioe){
                             sb.append("Failed to export ").append(outFile.getName());
                         }
