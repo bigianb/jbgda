@@ -55,6 +55,9 @@ public class TexDecode
 
     public void extract(Path outDir, byte[] fileData, int startOffset, String texFilename, int length) throws IOException {
         RenderedImage image = getImage(fileData, startOffset, length);
+        if (image == null){
+            return;
+        }
         var pngFilename = texFilename.replace(".tex", ".png");
         var outPath = outDir.resolve(pngFilename);
 

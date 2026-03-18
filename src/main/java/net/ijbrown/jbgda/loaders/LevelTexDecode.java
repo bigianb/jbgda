@@ -15,6 +15,8 @@
 */
 package net.ijbrown.jbgda.loaders;
 
+import org.tinylog.Logger;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
@@ -111,7 +113,12 @@ public class LevelTexDecode
                 int offset = entry.directoryOffset + i * 64;
 
                 File outFile = new File(outDirFile, "leveltex_"+entry.cellOffset + "_" + i + ".png");
-                extract(outFile, offset, entry.directoryOffset);
+                try {
+                    extract(outFile, offset, entry.directoryOffset);
+                } catch (RuntimeException e) {
+                    Logger.warn("Failed to decode {}", outFile);
+                    //throw new RuntimeException(e);
+                }
             }
         }
     }
@@ -120,7 +127,7 @@ public class LevelTexDecode
     {
         // Dark Alliance encodes pointers as offsets from the entry in the texture entry table.
         // Return to arms (more sensibly) encodes pointers as offsets from the current chunk loaded from the disc.
-        if (gameType == GameType.DARK_ALLIANCE ){
+        if (gameType == GameType.DARK_ALLIANCE){
             return offIn + directoryEntryOffset;
         } else {
             return offIn + segmentStartOffset;
@@ -151,11 +158,7 @@ public class LevelTexDecode
             return;
         }
         int decodeOffset = palOffset + 0xc00;
-        if (gameType == GameType.CHAMPIONS_OF_NORRATH){
-            int offNext = DataUtil.getLEUShort(fileData, palOffset);
-            palOffset += 4;
-            decodeOffset = palOffset + offNext * 4;
-        }
+
         PalEntry[] palette = PalEntry.readPalette(fileData, palOffset, 16, 16);
         palette = PalEntry.unswizzlePalette(palette);
         HuffVal[] huffVals = decode(decodeOffset);
@@ -252,7 +255,8 @@ public class LevelTexDecode
 
                 prevPixel = pix8 & 0xFF;
                 PalEntry pixel = palette[pix8 & 0xFF];
-                image.setRGB(xblock * 16 + x, yblock * 16 + y, pixel.argb());
+                // Ignore alpha channel for now
+                image.setRGB(xblock * 16 + x, yblock * 16 + y, pixel.rgb());
             }
         }
     }
