@@ -30,8 +30,8 @@ public class ExtractFiles {
 
         //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, true, "");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, true, "");
-        //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "");
-        new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "kelethin");
+        new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "airarena");
+        //new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "kelethin");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -57,10 +57,10 @@ public class ExtractFiles {
             extractHDRDATArchives(gameDataPath, extractedPath, gameType);
         }
         //convertFntFiles(extractedPath, gameType, pattern);
-        convertTexFiles(extractedPath, gameType, pattern);
-        convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
-        convertScriptFiles(extractedPath, gameType, pattern);
-        convertObFiles(extractedPath, gameType, pattern);
+        //convertTexFiles(extractedPath, gameType, pattern);
+        //convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
+        //convertScriptFiles(extractedPath, gameType, pattern);
+        //convertObFiles(extractedPath, gameType, pattern);
         convertWorldFiles(gameDataPath, extractedPath, gameType, pattern);
     }
 
@@ -304,7 +304,7 @@ public class ExtractFiles {
         var filename = path.getFileName().toString();
         var outDir = path.getParent();
         var worldName = filename.replace(".world", "");
-        var levelTexPath = gameDataPath.resolve(worldName + ".tex");
+        var levelTexPath = gameDataPath.resolve(worldName.toUpperCase() + ".TEX");
 
         byte[] worldData = Files.readAllBytes(path);
         var decoder = new WorldDecode(gameType);

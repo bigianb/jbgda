@@ -107,8 +107,8 @@ public class LevelTexDecode
     {
         for (var entry : texEntries){
             int numTexturesInEntry = DataUtil.getLEInt(fileData, entry.directoryOffset);
-            for (int i=0; i<numTexturesInEntry; ++i) {
-                int offset = entry.directoryOffset + (i + 1) * 64;
+            for (int i=1; i <= numTexturesInEntry; ++i) {
+                int offset = entry.directoryOffset + i * 64;
 
                 File outFile = new File(outDirFile, "leveltex_"+entry.cellOffset + "_" + i + ".png");
                 extract(outFile, offset, entry.directoryOffset);
@@ -141,7 +141,7 @@ public class LevelTexDecode
         boolean flag100 = (flags & 0x100) == 0x0100;
 
         if (!compressed){
-            return;
+   //         return;
         }
 
         int compressedDataOffset = header10 + deltaOffset;
