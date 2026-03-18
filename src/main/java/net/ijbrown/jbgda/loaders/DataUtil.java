@@ -83,7 +83,7 @@ public class DataUtil {
     }
 
     public static void setLEUShort(byte[] data, int offset, int val) {
-        data[offset + 1] = (byte)(val & 0xff);
+        data[offset] = (byte)(val & 0xff);
         data[offset + 1] = (byte)((val >> 8) & 0xff);
     }
 
