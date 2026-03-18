@@ -144,11 +144,14 @@ public class LevelTexDecode
         int header10 = DataUtil.getLEInt(fileData, offset + 0x10);
         int flags = DataUtil.getLEUShort(fileData, offset + 8);
 
-        boolean compressed = (flags & 0x1) == 0x01;
+        boolean usesCONScheme = (flags & 0x1) == 0x01;
         boolean flag100 = (flags & 0x100) == 0x0100;
 
-        if (!compressed){
-   //         return;
+        // CHAMPIONS OF NORRATH have flag 1 set whilst RTA and JLH do not
+        // I think that mean it does not use huffman tables.
+
+        if (usesCONScheme){
+            return;
         }
 
         int compressedDataOffset = header10 + deltaOffset;
