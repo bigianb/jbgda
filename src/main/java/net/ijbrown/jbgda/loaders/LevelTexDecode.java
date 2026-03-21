@@ -134,6 +134,60 @@ public class LevelTexDecode
         }
     }
 
+    static class HuffmanTable
+    {
+        public HuffmanTable()
+        {
+            values = new ArrayList<>();
+        }
+        public int lenBytes;
+        public int subtracts;
+        public List<Integer> values;
+    }
+
+    private HuffmanTable decodeHuffman(int offset)
+    {
+        HuffmanTable table = new HuffmanTable();
+
+        int pos = offset;
+        int numBits = DataUtil.getLEInt(fileData, pos);
+        table.subtracts = 0x21 - numBits;
+
+        int code2 =  DataUtil.getLEInt(fileData, pos + 8);
+        pos += 4;
+        while (code2 != -1) {
+            int code1 = DataUtil.getLEInt(fileData, pos);
+            numBits += 1;
+
+            table.values.add(code1 >> 2);
+
+            code2 =  DataUtil.getLEInt(fileData, pos + 4);
+            pos += 8;
+        }
+
+
+        return table;
+    }
+
+
+    private void extractVQ(int pixelWidth, int pixelHeight, int deltaOffset, int compressedDataOffset)
+    {
+        int v1 = DataUtil.getLEUShort(fileData, compressedDataOffset);
+        int v2 = DataUtil.getLEUShort(fileData, compressedDataOffset + 2); // huff table len in words
+        int palOffset =  compressedDataOffset + 4;
+        if (fileData.length <= compressedDataOffset + 256 * 4){
+            Logger.error("not enough bytes to decode image");
+            return;
+        }
+        PalEntry[] palette = PalEntry.readPalette(fileData, palOffset, 16, 16);
+        palette = PalEntry.unswizzlePalette(palette);
+
+        // offset to first huffman table
+        int off1 = compressedDataOffset + 4 + v1 * 4;
+        decodeHuffman(off1);
+
+
+    }
 
     public void extract(File outputfile, int offset, int chunkStartOffset) throws IOException
     {
@@ -144,17 +198,17 @@ public class LevelTexDecode
         int header10 = DataUtil.getLEInt(fileData, offset + 0x10);
         int flags = DataUtil.getLEUShort(fileData, offset + 8);
 
-        boolean usesCONScheme = (flags & 0x1) == 0x01;
+        boolean usesVQCompression = (flags & 0x1) == 0x01;
         boolean flag100 = (flags & 0x100) == 0x0100;
 
-        // CHAMPIONS OF NORRATH have flag 1 set whilst RTA and JLH do not
-        // I think that mean it does not use huffman tables.
+        int compressedDataOffset = header10 + deltaOffset;
 
-        if (usesCONScheme){
+        // CHAMPIONS OF NORRATH have flag 1 set whilst BGDA, RTA and JLH do not
+        if (usesVQCompression){
+            extractVQ(pixelWidth, pixelHeight, deltaOffset, compressedDataOffset);
             return;
         }
 
-        int compressedDataOffset = header10 + deltaOffset;
         int palOffset = DataUtil.getLEInt(fileData, compressedDataOffset) + deltaOffset;
         if (compressedDataOffset <= 0 || compressedDataOffset >= fileData.length)
         {
