@@ -31,7 +31,7 @@ public class ExtractFiles {
         //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "cellar1");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, false, "e1l1a");
         //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "airarena");
-        new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "kelethin");
+        new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "kelsel");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {

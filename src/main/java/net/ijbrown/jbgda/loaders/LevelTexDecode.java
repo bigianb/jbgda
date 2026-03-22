@@ -172,9 +172,10 @@ public class LevelTexDecode
 
     private void extractVQ(int pixelWidth, int pixelHeight, int deltaOffset, int compressedDataOffset)
     {
-        int v1 = DataUtil.getLEUShort(fileData, compressedDataOffset);
-        int v2 = DataUtil.getLEUShort(fileData, compressedDataOffset + 2); // huff table len in words
-        int palOffset =  compressedDataOffset + 4;
+        int vqPaletteOffset = DataUtil.getLEInt(fileData, compressedDataOffset) + deltaOffset;
+        int v1 = DataUtil.getLEUShort(fileData, vqPaletteOffset);
+        int v2 = DataUtil.getLEUShort(fileData, vqPaletteOffset + 2); // huff table len in words
+        int palOffset =  vqPaletteOffset + 4;
         if (fileData.length <= compressedDataOffset + 256 * 4){
             Logger.error("not enough bytes to decode image");
             return;
@@ -183,7 +184,7 @@ public class LevelTexDecode
         palette = PalEntry.unswizzlePalette(palette);
 
         // offset to first huffman table
-        int off1 = compressedDataOffset + 4 + v1 * 4;
+        int off1 = palOffset + v1 * 4;
         decodeHuffman(off1);
 
 
