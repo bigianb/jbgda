@@ -114,7 +114,7 @@ public class LevelTexDecode
 
                 File outFile = new File(outDirFile, "leveltex_"+entry.cellOffset + "_" + i + ".png");
                 try {
-                    extract(outFile, offset, entry.directoryOffset);
+                    extract(outFile, offset, entry.directoryOffset, entry.cellOffset);
                 } catch (RuntimeException e) {
                     Logger.warn("Failed to decode {}", outFile);
                     //throw new RuntimeException(e);
@@ -176,8 +176,10 @@ public class LevelTexDecode
     }
 
 
-    private void extractVQ(int pixelWidth, int pixelHeight, int deltaOffset, int compressedDataOffset)
+    private void extractVQ(int pixelWidth, int pixelHeight, int chunkStartOffset, int deltaOffset, int compressedDataOffset, int pageNum)
     {
+        // pageNum is 100 * y + x ... so 4849 for example
+        // chunkStartOffset is the start of the page data (i.e. the directory)
         int vqPaletteOffset = DataUtil.getLEInt(fileData, compressedDataOffset) + deltaOffset;
         int v1 = DataUtil.getLEUShort(fileData, vqPaletteOffset);
         int v2 = DataUtil.getLEUShort(fileData, vqPaletteOffset + 2); // huff table len in words
@@ -293,7 +295,9 @@ public class LevelTexDecode
                         long pixel_y = y * 0x10;
                         int iStack_64 = 0;
                         long pixel_y_bot = pixel_y + 0x10;
+                        // Assume this is chunk start offset.
                         //pcStack_6c = texturePageTable + pageNum;
+                        var pcStack_6c = chunkStartOffset;
                         do {
                             //puVar40 = &uStack_1e0;
                             y0 = 0;
@@ -333,47 +337,49 @@ public class LevelTexDecode
 
                                 var uVar43 = (uVar16 >>> 0x20);
                                 uVar34 = (uVar43 >> 8) & 7;
-                                //cVar1 = *pcStack_6c;
+
                                 uVar43 >>= 8;
                                 var palX = uVar43 >> 3;
+
+                                var cVar1 = fileData[pcStack_6c];
                                 /*
                                 if (cVar1 < 9) {
-                                    pbStack_b4 = (byte *)(*(int *)(world + 0x7c) +
-                                            (uint)(byte)(&texturePageSegLoc)
-                                                      [((int)uVar43 >> 0x14) + cVar1 * 0x80] *
-                                    0x20000 + (palX & 0x1ffff));
-                                }
-                                else {
+                                    pbStack_b4 = (byte *)((int)world->segment_cache +
+                                                         (palX & 0x1ffff) +
+                                                         (uint)(byte)(&texturePageSegLoc)
+                                                                     [((int)uVar38 >> 0x14) + cVar1 * 0x80] * 0x20000);
+                                  } else {
                                     pbStack_b4 = (byte *)((int)&texturePageLoc[cVar1] + palX);
-                                }
+                                  }
+
                                 */
+                                var pbStack_b4 = chunkStartOffset + (int)palX;
+
                                 //puVar40 = &uStack_1d0;
-                                //uStack_b8 = 0;
-                                //uStack_c0 = 0;
-                                //uStack_1c8._0_4_ = 0;
-                                //uStack_1d0 = 0;
-                                //uStack_1c8._4_4_ = pbStack_b4;
-                                /*
+                                int uStack_b8 = 0;
+                                int uStack_c0 = 0;
+                                long uStack_1c8 = 0;
+                                long uStack_1d0 = 0;
+                                int uStack_1c4 = pbStack_b4;
+
                                 if (uVar34 != 0) {
                                     do {
-                                        bVar2 = *uStack_1c8._4_4_;
-                                        uStack_1c8._4_4_ = uStack_1c8._4_4_ + 1;
-                                        palY = 0x38 - (int)uStack_1c8;
+                                        long bVar2 = fileData[uStack_1c4];
+                                        uStack_1c4++;
+                                        long palY = 0x38 - uStack_1c8;
                                         uStack_1c8 += 8;
-                                        uStack_1d0 |= (ulong)bVar2 << (long)palY;
-                                    } while ((long)(int)uStack_1c8 < (long)uVar34);
+                                        uStack_1d0 |= bVar2 << palY;
+                                    } while (uStack_1c8 < uVar34);
 
                                     uStack_1d0 <<= uVar34;
                                     uStack_1c8 -= uVar34;
                                 }
                                 for (; uStack_1c8 < 1; uStack_1c8 += 8) {
-                                    uStack_1d0 |= (ulong)*uStack_1c8._4_4_ << (long)(0x38 - (int)uStack_1c8);
-                                    uStack_1c8._4_4_ = uStack_1c8._4_4_ + 1;
+                                    uStack_1d0 |= (long) fileData[uStack_1c4] << (0x38 - uStack_1c8);
+                                    uStack_1c4++;
                                 }
                                 uStack_1d0 = uStack_1d0 << 1;
-                                uStack_1c8 = CONCAT44(uStack_1c8._4_4_,(int)uStack_1c8 + -1);
-
-                                 */
+                                uStack_1c8--;
                             }
                             var lVar42 = pixel_y;
 
@@ -505,7 +511,7 @@ public class LevelTexDecode
         }
     }
 
-    public void extract(File outputfile, int offset, int chunkStartOffset) throws IOException
+    public void extract(File outputfile, int offset, int chunkStartOffset, int cellOffset) throws IOException
     {
         var deltaOffset = convertOffset(0, chunkStartOffset, offset);
 
@@ -521,7 +527,7 @@ public class LevelTexDecode
 
         // CHAMPIONS OF NORRATH have flag 1 set whilst BGDA, RTA and JLH do not
         if (usesVQCompression){
-            extractVQ(pixelWidth, pixelHeight, deltaOffset, compressedDataOffset);
+            extractVQ(pixelWidth, pixelHeight, chunkStartOffset, deltaOffset, compressedDataOffset, cellOffset);
             return;
         }
 

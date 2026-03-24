@@ -303,7 +303,7 @@ public class WorldDecode
 
         sb.append("-----------------------------------------------------\r\n");
         sb.append("\r\n");
-        sb.append("Elements (24) array - ").append(numElements).append(" elements\r\n \r\n");
+        sb.append("Polyset array - ").append(numElements).append(" elements\r\n \r\n");
         for (int i = 0; i < Math.min(numElements, 2); ++i) {
             int off = polysets + i * 0x3C;
             if (gameType == GameType.DARK_ALLIANCE) {
@@ -347,22 +347,34 @@ public class WorldDecode
 
             // Chunk in texture
             sb.append("    tex num: ").append(DataUtil.getLEInt(fileData, off)/0x40).append("\r\n");
-            sb.append("    tex cell: ").append(DataUtil.getLEShort(fileData, off + 4)).append("\r\n");
-            off += 6;
-            if (gameType != GameType.DARK_ALLIANCE) {
-                off += 2;
-            }
-            sb.append("    pos x: ").append(DataUtil.getLEShort(fileData, off)).append("\r\n");
-            sb.append("    pos y: ").append(DataUtil.getLEShort(fileData, off + 0x2)).append("\r\n");
-            sb.append("    pos z: ").append(DataUtil.getLEShort(fileData, off + 0x4)).append("\r\n");
-            off += 6;
-            int flags = DataUtil.getLEInt(fileData, off);
             off += 4;
-            // test 0x800 for a flag.
-            sb.append("    flags30: ").append(HexUtil.formatHexUShort(flags)).append("\r\n");
+            if (gameType == GameType.DARK_ALLIANCE) {
+                sb.append("    tex cell: ").append(DataUtil.getLEShort(fileData, off)).append("\r\n");
+                off += 2;
+                sb.append("    pos x: ").append(DataUtil.getLEShort(fileData, off)).append("\r\n");
+                sb.append("    pos y: ").append(DataUtil.getLEShort(fileData, off + 0x2)).append("\r\n");
+                sb.append("    pos z: ").append(DataUtil.getLEShort(fileData, off + 0x4)).append("\r\n");
+                off += 6;
+                int flags = DataUtil.getLEInt(fileData, off);
+                off += 4;
+                // test 0x800 for a flag.
+                sb.append("    flags30: ").append(HexUtil.formatHexUShort(flags)).append("\r\n");
 
-            sb.append("    0x32: ").append(HexUtil.formatHexUShort(DataUtil.getLEShort(fileData, off ))).append("\r\n");
-            sb.append("    0x34: ").append(HexUtil.formatHexUShort(DataUtil.getLEShort(fileData, off + 4))).append("\r\n");
+                sb.append("    0x32: ").append(HexUtil.formatHexUShort(DataUtil.getLEShort(fileData, off))).append("\r\n");
+                sb.append("    0x34: ").append(HexUtil.formatHexUShort(DataUtil.getLEShort(fileData, off + 4))).append("\r\n");
+            } else {
+                int flags = DataUtil.getLEInt(fileData, off);
+                sb.append("    flags: ").append(HexUtil.formatHexUShort(flags)).append("\r\n");
+                off += 4;
+                sb.append("    pos x: ").append(DataUtil.getLEInt(fileData, off)).append("\r\n");
+                sb.append("    pos y: ").append(DataUtil.getLEInt(fileData, off + 0x4)).append("\r\n");
+                sb.append("    pos z: ").append(DataUtil.getLEInt(fileData, off + 0x8)).append("\r\n");
+                off += 12;
+                sb.append("    tex PageNo: ").append(DataUtil.getLEShort(fileData, off)).append("\r\n");
+                off += 2;
+                int rotFlags = DataUtil.getLEInt(fileData, off);
+                sb.append("    rotFlags: ").append(HexUtil.formatHexUShort(rotFlags)).append("\r\n");
+            }
             sb.append("}\r\n");
 
             if (!meshOffsets.contains(meshOffset)) {
