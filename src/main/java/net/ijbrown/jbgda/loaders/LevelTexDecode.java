@@ -139,11 +139,109 @@ public class LevelTexDecode
         public HuffmanTable()
         {
             values = new ArrayList<>();
+            values2 = new ArrayList<>();
+            huffman = new ArrayList<>();
         }
         public int lenBytes;
         public int subtracts;
         public int numBits;
         public List<Integer> values;
+        public List<Integer> values2;
+        public List<Integer> huffman;
+
+        public void buildValues2()
+        {
+            while (values.size() < 0x20){
+                values.add(0x7fffffff);
+            }
+
+            int idx = 0;
+            while (idx < 0x20){
+                for (int i=0; i<4; ++i){
+                    int v = values.get(idx + 3 - i);
+                    values2.add(v);
+                }
+                idx += 4;
+            }
+        }
+
+        public void buildHuffman(int targetLen, int dataOffset, byte[] fileData)
+        {
+            long bitBuffer = 0;
+
+            int puStack_1e4 = dataOffset;
+            if (numBits == 0) {
+                for (int i=0; i < targetLen; ++i){
+                    huffman.add(0);
+                }
+            } else {
+                int y0 = 0;
+                if (targetLen != 0) {
+                    int uVar28 = 0;
+                    int iStack_1e8 = 0;
+                    do {  // ivar27 < uVar5
+                        int iVar19 = 0;
+                        do {  // iVar19 < 4
+                            int iVar37 = iVar19 + y0 * 4;
+                            for (; iStack_1e8 < 0x20; iStack_1e8 += 8) {
+                                byte b = fileData[puStack_1e4++];
+                                bitBuffer |= (long)b << (long)(0x38 - iStack_1e8);
+                            }
+                            iStack_1e8 += -0x20;
+                            long uVar34 = bitBuffer >>> 0x20;
+                            long uVar43 = (bitBuffer >>> 0x20);
+                            long lVar18 = (long)(int)(uVar43 >> 2);
+                            long iVar20 = 0;
+
+                            auVar26 = _pextlw(lVar18,lVar18);
+                            auVar26 = _pextlw(auVar26._0_8_,auVar26._0_8_);
+
+                            puVar38 = gbits;
+                            uVar30 = gbits[0];
+                            uVar31 = gbits[1];
+                            uVar33 = gbits[2];
+                            uVar32 = gbits[3];
+                            do {
+                                // auVar36 = 128 bit of the huffman code.
+                                puVar38 = puVar38 + 4;
+                                auVar36._4_4_ = uVar31;
+                                auVar36._0_4_ = uVar30;
+                                auVar36._8_4_ = uVar33;
+                                auVar36._12_4_ = uVar32;
+
+                                auVar36 = _pcgtw(auVar36,auVar26);
+                                auVar36 = _ppach(in_zero_qw,auVar36);
+                                auVar36 = _ppacb(in_zero_qw,auVar36);
+
+                                uVar30 = *puVar38;
+                                uVar31 = puVar38[1];
+                                uVar33 = puVar38[2];
+                                uVar32 = puVar38[3];
+                                // parallel leading zero count word
+                                uVar35 = _plzcw(auVar36._0_8_ >> 1);
+
+                                int numLeadingZeroBytes = (int)uVar35 + 1U >> 3;
+                                iVar20 += numLeadingZeroBytes;
+                            } while (3 < (numLeadingZeroBytes));
+                            bitBuffer <<= 0x20;
+
+                            palX = gsubtracts - iVar20;
+                            if ((long)(int)palX != 0) {
+                                iStack_1e8 += palX;
+                                bitBuffer = bitBuffer >> (long)(int)palX |
+                                        (uVar34 & ~(long)(-1 << (palX & 0x1f)) & 0xffffffff) <<
+                                                (long)(int)(0x40 - palX);
+                            }
+                            iVar19 += 1;
+                            huffmanTemp[iVar37] = (char)(uVar43 >> (palX & 0x1f)) - (char)(&gsubtracts)[palX];
+                            //*(char *)(iVar37 + palY + 0x5d00) = char)(uVar43 >> (palX & 0x1f)) - (char)(&gsubtracts)[palX];
+                        } while (iVar19 < 4);
+                        y0 += 1;
+                    } while (y0 < targetLen);
+                }
+            }
+
+        }
     }
 
     private HuffmanTable decodeHuffman(int offset)
@@ -172,12 +270,17 @@ public class LevelTexDecode
         }
         table.lenBytes = pos + 8 - offset;
 
+        table.buildValues2();
         return table;
     }
 
 
     private void extractVQ(int pixelWidth, int pixelHeight, int chunkStartOffset, int deltaOffset, int compressedDataOffset, int pageNum)
     {
+
+        byte[] auStack_1c0 = new byte[256];
+        int[] puVar40 = {0,0};
+
         // pageNum is 100 * y + x ... so 4849 for example
         // chunkStartOffset is the start of the page data (i.e. the directory)
         int vqPaletteOffset = DataUtil.getLEInt(fileData, compressedDataOffset) + deltaOffset;
@@ -200,7 +303,7 @@ public class LevelTexDecode
         var table2 = decodeHuffman(off2);
 
         int off3 = off2 + table2.lenBytes;
-
+        table1.buildHuffman(v2, off3, fileData);
 
         int blocksWidth = 1;
         int bw = (pixelWidth + 0xf) >> 4;
@@ -355,7 +458,6 @@ public class LevelTexDecode
                                 */
                                 var pbStack_b4 = chunkStartOffset + (int)palX;
 
-                                //puVar40 = &uStack_1d0;
                                 int uStack_b8 = 0;
                                 int uStack_c0 = 0;
                                 long uStack_1c8 = 0;
@@ -383,29 +485,29 @@ public class LevelTexDecode
                             }
                             var lVar42 = pixel_y;
 
-                            /*
-                            if (*puStack_a8 == 0) {
-                                for (; lVar42 < lVar44; lVar42 = (long)((int)lVar42 + 2)) {
-                                    palY = y0 * 0x20;
-                                    iVar19 = palY + 0x10;
+                            // data following second huffman table
+                            if (DataUtil.getLEInt(fileData, off3) == 0) {
+                                // use huffman table 1
+                                for (; lVar42 < lVar44; lVar42 = ((int)lVar42 + 2)) {
+                                    int ytop = (int)y0 * 0x20;
+                                    int ybot = ytop + 0x10;
                                     y0 += 1;
-                                    for (iVar37 = iStack_74; iVar37 < lVar18; iVar37 += 2) {
-                                        puVar39 = auStack_1c0 + iVar19;
-                                        auStack_1c0[palY] = huffmanTemp;
-                                        iVar20 = palY + 1;
-                                        iVar7 = iVar19 + 1;
-                                        palY += 2;
-                                        auStack_1c0[iVar20] = DAT_00355d01;
-                                        iVar19 += 2;
-                                        *puVar39 = DAT_00355d02;
-                                        auStack_1c0[iVar7] = DAT_00355d03;
+                                    for (long iVar37 = iStack_74; iVar37 < lVar18; iVar37 += 2) {
+                                        auStack_1c0[ytop] = huffmanTemp[0];
+                                        auStack_1c0[ytop + 1] = huffmanTemp[1];
+                                        auStack_1c0[ybot] = huffmanTemp[2] ;
+                                        auStack_1c0[ybot + 1] = huffmanTemp[3];
+
+                                        ybot += 2;
+                                        ytop += 2;
                                     }
                                 }
                             } else {
-                                for (; lVar42 < lVar44; lVar42 = (long)((int)lVar42 + 2)) {
-                                    lVar45 = (long)iStack_74;
-                                    palY = y0 * 0x20;
-                                    iVar19 = palY + 0x10;
+                                // use huffman table 2 to find the entry in huffman table 1
+                                for (; lVar42 < lVar44; lVar42 = ((int)lVar42 + 2)) {
+                                    long lVar45 = iStack_74;
+                                    long palY = y0 * 0x20;
+                                    long iVar19 = palY + 0x10;
                                     y0 += 1;
                                     if (lVar45 < lVar18) {
                                         do {
@@ -430,12 +532,13 @@ public class LevelTexDecode
                                             iVar20 = 0;
                                             auVar26 = _pextlw(lVar25,lVar25);
                                             auVar26 = _pextlw(auVar26._0_8_,auVar26._0_8_);
-                                            puVar38 = &DAT_0037dd90;
-                                            uVar28 = gbits;
-                                            uVar30 = DAT_0037dd84;
-                                            uVar31 = DAT_0037dd88;
-                                            uVar33 = DAT_0037dd8c;
+                                            puVar38 = gbits;
+                                            uVar28 = gbits[0];
+                                            uVar30 = gbits[1];
+                                            uVar31 = gbits[2];
+                                            uVar33 = gbits[3];
                                             do {
+                                                puVar38 = puVar38 + 4;
                                                 auVar10._4_4_ = uVar30;
                                                 auVar10._0_4_ = uVar28;
                                                 auVar10._8_4_ = uVar31;
@@ -448,8 +551,8 @@ public class LevelTexDecode
                                                 uVar31 = puVar38[2];
                                                 uVar33 = puVar38[3];
                                                 uVar35 = _plzcw(auVar36._0_8_ >> 1);
-                                                puVar38 = puVar38 + 4;
-                                                palX = (int)uVar35 + 1U >> 3;
+
+                                                palX = (int)uVar35 + 1 >> 3;
                                                 iVar20 += palX;
                                             } while (-1 < (int)(palX - 4));
                                             palX = gsubtracts - iVar20;
@@ -461,20 +564,20 @@ public class LevelTexDecode
                                                         ((long)uVar34 >> 0x20 & ~(long)(-1 << (palX & 0x1f)) & 0xffffffff) << (long)(int)(0x40 - palX);
                                             }
                                             iVar20 = ((uVar43 >> (palX & 0x1f)) - iVar20) * 4;
-                                            auStack_1c0[palY] = (&huffmanTemp)[iVar20];
-                                            puVar39 = auStack_1c0 + iVar19;
-                                            lVar45 = (long)((int)lVar45 + 2);
-                                            auStack_1c0[palY + 1] = (&DAT_00355d01)[iVar20];
-                                            iVar37 = iVar19 + 1;
+
+                                            auStack_1c0[palY] = huffmanTemp[iVar20];
+                                            auStack_1c0[palY + 1] = huffmanTemp[iVar20+1];
+                                            auStack_1c0[iVar19] = huffmanTemp[iVar20+2];
+                                            auStack_1c0[iVar19 + 1] = huffmanTemp[iVar20+3];
+
+                                            lVar45 += 2;
                                             palY += 2;
                                             iVar19 += 2;
-                                            *puVar39 = (&DAT_00355d02)[iVar20];
-                                            auStack_1c0[iVar37] = (&DAT_00355d03)[iVar20];
                                         } while (lVar45 < lVar18);
                                     }
                                 }
                             }
-                            */
+
 
                             /*
                             y0 = 0;
