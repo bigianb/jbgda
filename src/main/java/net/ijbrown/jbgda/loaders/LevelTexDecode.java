@@ -351,9 +351,10 @@ public class LevelTexDecode
         byte[] data;
     }
 
-    private void extractVQ(int pixelWidth, int pixelHeight, int chunkStartOffset, int deltaOffset, int compressedDataOffset, int pageNum)
-    {
+    private void extractVQ(File outputfile, int pixelWidth, int pixelHeight, int chunkStartOffset, int deltaOffset, int compressedDataOffset, int pageNum) throws IOException {
         byte[] auStack_1c0 = new byte[256];
+
+        BufferedImage image = new BufferedImage(pixelWidth, pixelHeight, BufferedImage.TYPE_INT_ARGB);
 
         // pageNum is 100 * y + x ... so 4849 for example
         // chunkStartOffset is the start of the page data (i.e. the directory)
@@ -538,40 +539,14 @@ public class LevelTexDecode
                         }
                     }
 
-
-                    /*
-                    y0 = 0;
-                    iVar19 = 0;
-                    palY = 0;
-                    do {
-                        iVar37 = 7;
-                        puVar39 = (undefined1 *)((iStack_64 * 8 + palY) * 4 + (int)puStack_78);
-                        do {
-                            pbVar15 = &unscrambleTable + y0;
-                            pbVar22 = &DAT_006e9081 + y0;
-                            iVar37 += -1;
-                            pbVar24 = &DAT_006e9082 + y0;
-                            pbVar29 = &DAT_006e9083 + y0;
-                            y0 += 4;
-                            *puVar39 = auStack_1c0[*pbVar15];
-                            puVar39[1] = auStack_1c0[*pbVar22];
-                            puVar39[2] = auStack_1c0[*pbVar24];
-                            puVar39[3] = auStack_1c0[*pbVar29];
-                            puVar39 = puVar39 + 4;
-                        } while (-1 < iVar37);
-                        iVar19 += 1;
-                        palY += iStack_84;
-                    } while (iVar19 < 8);
-                    */
-
                     /*
                       palY = 0;
-                      iVar32 = 0;
-                      iVar18 = 0;
+                      blockY = 0;
+                      yy = 0;
                       do {
                         iVar19 = 7;
                         // output
-                        pbVar34 = (byte *)((iStack_64 * 8 + iVar18) * 4 + (int)apuStack_210[0]);
+                        pbVar34 = (byte *)((iStack_64 * 8 + yy) * 4 + (int)apuStack_210[0]);
                         do {
                           pbVar14 = unscrambleTable + palY;
                           iVar38 = palY + 1;
@@ -585,10 +560,19 @@ public class LevelTexDecode
                           pbVar34[3] = auStack_1c0[unscrambleTable[iVar25]];
                           pbVar34 = pbVar34 + 4;
                         } while (-1 < iVar19);
-                        iVar32 += 1;
-                        iVar18 += width * 8;
-                      } while (iVar32 < 8);
+                        blockY += 1;
+                        yy += width * 8;
+                      } while (blockY < 8);
                      */
+
+                    int idx= 0;
+                    for (int blockY=0; blockY < 8; blockY++) {
+                        for (int blockX = 0; blockX < 8 * 4; blockX++) {
+                            byte pix8 = auStack_1c0[idx++];
+                            PalEntry pixel = palette[pix8 & 0xFF];
+                            image.setRGB((int)x * 16 + blockX, (int)y * 16 + blockY, pixel.rgb());
+                        }
+                    }
 
                     x++;
                     iStack_64++;
@@ -598,6 +582,7 @@ public class LevelTexDecode
 
             }
         }
+        ImageIO.write(image, "png", outputfile);
     }
 
     public void extract(File outputfile, int offset, int chunkStartOffset, int cellOffset) throws IOException
@@ -616,7 +601,7 @@ public class LevelTexDecode
 
         // CHAMPIONS OF NORRATH have flag 1 set whilst BGDA, RTA and JLH do not
         if (usesVQCompression){
-            extractVQ(pixelWidth, pixelHeight, chunkStartOffset, deltaOffset, compressedDataOffset, cellOffset);
+            extractVQ(outputfile, pixelWidth, pixelHeight, chunkStartOffset, deltaOffset, compressedDataOffset, cellOffset);
             return;
         }
 
