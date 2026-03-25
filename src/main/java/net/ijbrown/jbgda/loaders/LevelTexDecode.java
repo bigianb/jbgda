@@ -139,17 +139,18 @@ public class LevelTexDecode
         public HuffmanTable()
         {
             values = new ArrayList<>();
-            values2 = new ArrayList<>();
             huffman = new ArrayList<>();
+            gbits = new int[32];
+            subtracts = new int[33];
         }
         public int lenBytes;
-        public int subtracts;
-        public int numBits;
+        public int[] subtracts;
+        public int numBitsOrig;
         public List<Integer> values;
-        public List<Integer> values2;
-        public List<Integer> huffman;
+        public int[] gbits;
+        public List<Byte> huffman;
 
-        public void buildValues2()
+        public void buildGbits()
         {
             while (values.size() < 0x20){
                 values.add(0x7fffffff);
@@ -159,7 +160,7 @@ public class LevelTexDecode
             while (idx < 0x20){
                 for (int i=0; i<4; ++i){
                     int v = values.get(idx + 3 - i);
-                    values2.add(v);
+                    gbits[idx + i] = v;
                 }
                 idx += 4;
             }
@@ -170,71 +171,104 @@ public class LevelTexDecode
             long bitBuffer = 0;
 
             int puStack_1e4 = dataOffset;
-            if (numBits == 0) {
-                for (int i=0; i < targetLen; ++i){
-                    huffman.add(0);
-                }
-            } else {
+            huffman.clear();
+            for (int i=0; i < targetLen; ++i){
+                huffman.add((byte) 0);
+            }
+            if (numBitsOrig > 0) {
                 int y0 = 0;
                 if (targetLen != 0) {
                     int uVar28 = 0;
                     int iStack_1e8 = 0;
-                    do {  // ivar27 < uVar5
+                    do {  // y0 < targetLen
                         int iVar19 = 0;
                         do {  // iVar19 < 4
-                            int iVar37 = iVar19 + y0 * 4;
+                            int huffIndex = iVar19 + y0 * 4;
                             for (; iStack_1e8 < 0x20; iStack_1e8 += 8) {
                                 byte b = fileData[puStack_1e4++];
                                 bitBuffer |= (long)b << (long)(0x38 - iStack_1e8);
                             }
-                            iStack_1e8 += -0x20;
-                            long uVar34 = bitBuffer >>> 0x20;
-                            long uVar43 = (bitBuffer >>> 0x20);
-                            long lVar18 = (long)(int)(uVar43 >> 2);
-                            long iVar20 = 0;
+                            iStack_1e8 -= 0x20;
 
-                            auVar26 = _pextlw(lVar18,lVar18);
-                            auVar26 = _pextlw(auVar26._0_8_,auVar26._0_8_);
+                            int uVar34 = (int)(bitBuffer >>> 0x20);
+                            int lVar18 = uVar34 >>> 2;
 
-                            puVar38 = gbits;
-                            uVar30 = gbits[0];
-                            uVar31 = gbits[1];
-                            uVar33 = gbits[2];
-                            uVar32 = gbits[3];
+                            long sumNumLeadingZeroBytes = 0;
+
+                            // auVar26 is a 128 bit value with lVar18 repeated 4 times.
+
+                            //auVar26 = _pextlw(lVar18,lVar18);
+                            //auVar26 = _pextlw(auVar26._0_8_,auVar26._0_8_);
+
+                            int puVar38 = 0;
+                            int numLeadingZeroBytes = 0;
                             do {
+                                int uVar30 = gbits[puVar38 + 0];
+                                int uVar31 = gbits[puVar38 + 1];
+                                int uVar32 = gbits[puVar38 + 2];
+                                int uVar33 = gbits[puVar38 + 3];
+
                                 // auVar36 = 128 bit of the huffman code.
-                                puVar38 = puVar38 + 4;
-                                auVar36._4_4_ = uVar31;
-                                auVar36._0_4_ = uVar30;
-                                auVar36._8_4_ = uVar33;
-                                auVar36._12_4_ = uVar32;
+                                // _3 is the high word.
 
-                                auVar36 = _pcgtw(auVar36,auVar26);
-                                auVar36 = _ppach(in_zero_qw,auVar36);
-                                auVar36 = _ppacb(in_zero_qw,auVar36);
+                                int auVar36_3 = uVar33;
+                                int auVar36_2 = uVar32;
+                                int auVar36_1 = uVar31;
+                                int auVar36_0 = uVar30;
 
-                                uVar30 = *puVar38;
-                                uVar31 = puVar38[1];
-                                uVar33 = puVar38[2];
-                                uVar32 = puVar38[3];
-                                // parallel leading zero count word
-                                uVar35 = _plzcw(auVar36._0_8_ >> 1);
+                                //auVar36 = _pcgtw(auVar36,auVar26);
+                                auVar36_3 = auVar36_3 > lVar18 ? -1 : 0;
+                                auVar36_2 = auVar36_2 > lVar18 ? -1 : 0;
+                                auVar36_1 = auVar36_1 > lVar18 ? -1 : 0;
+                                auVar36_0 = auVar36_0 > lVar18 ? -1 : 0;
 
-                                int numLeadingZeroBytes = (int)uVar35 + 1U >> 3;
-                                iVar20 += numLeadingZeroBytes;
-                            } while (3 < (numLeadingZeroBytes));
+                                // Pack the lower 16 bits of each _3, _2, _1, _0 into _1 and _0
+                                //auVar36 = _ppach(in_zero_qw,auVar36);
+                                // Pack the lower 64 bits into the lower 32 bits.
+                                //auVar36 = _ppacb(in_zero_qw,auVar36);
+
+                                // parallel leading zero count word - 1
+                                //int uVar35 = _plzcw(auVar36._0_8_ >> 1);
+                                //numLeadingZeroBytes = uVar35 + 1 >> 3;
+
+                                numLeadingZeroBytes = 0;
+                                if (auVar36_3 == 0){
+                                    ++numLeadingZeroBytes;
+                                    if (auVar36_2 == 0){
+                                        ++numLeadingZeroBytes;
+                                        if (auVar36_1 == 0){
+                                            ++numLeadingZeroBytes;
+                                            if (auVar36_0 == 0){
+                                                ++numLeadingZeroBytes;
+                                            }
+                                        }
+                                    }
+                                }
+                                sumNumLeadingZeroBytes += numLeadingZeroBytes;
+
+                                puVar38 += 4;
+
+                            } while (numLeadingZeroBytes > 3);
+
+                            // Shift out the 32 bits in uVar34
                             bitBuffer <<= 0x20;
-
-                            palX = gsubtracts - iVar20;
-                            if ((long)(int)palX != 0) {
-                                iStack_1e8 += palX;
-                                bitBuffer = bitBuffer >> (long)(int)palX |
-                                        (uVar34 & ~(long)(-1 << (palX & 0x1f)) & 0xffffffff) <<
-                                                (long)(int)(0x40 - palX);
+                            int subtractsIdx = subtracts[0] - (int)sumNumLeadingZeroBytes;
+                            int safeIndex = subtractsIdx & 0x1F;
+                            if (subtractsIdx != 0) {
+                                // add subtractsIdx bits back into the read buffer
+                                iStack_1e8 += subtractsIdx;     // bits read into bit buffer
+                                int bbLeftShift = 0x40 - subtractsIdx;
+                                bitBuffer >>>= subtractsIdx;
+                                // only keep the least significant safeIndex bits.
+                                long mask = (~(-1 << safeIndex));
+                                long keep = uVar34 & mask;
+                                bitBuffer |= keep << bbLeftShift;
                             }
+
+                            int huffval = (uVar34 >>> safeIndex) - subtracts[subtractsIdx];
+                            huffman.set(huffIndex, (byte) huffval);
+
                             iVar19 += 1;
-                            huffmanTemp[iVar37] = (char)(uVar43 >> (palX & 0x1f)) - (char)(&gsubtracts)[palX];
-                            //*(char *)(iVar37 + palY + 0x5d00) = char)(uVar43 >> (palX & 0x1f)) - (char)(&gsubtracts)[palX];
                         } while (iVar19 < 4);
                         y0 += 1;
                     } while (y0 < targetLen);
@@ -249,37 +283,77 @@ public class LevelTexDecode
         HuffmanTable table = new HuffmanTable();
 
         int pos = offset;
-        int numBits = DataUtil.getLEInt(fileData, pos);
-        table.numBits = numBits;
-        table.subtracts = 0x21 - numBits;
+        int numBits = DataUtil.getLEInt(fileData, pos) & 0x1F;
+        table.numBitsOrig = numBits;
+        table.subtracts[0] = 33 - numBits;
 
         pos += 4;
         int code2 =  DataUtil.getLEInt(fileData, pos + 4);
 
         while (code2 != -1) {
             int code1 = DataUtil.getLEInt(fileData, pos);
-            numBits += 1;
 
-            table.values.add(code1 >> 2);
+            table.values.add(code1 >>> 2);
+            int shiftVal = (32 - numBits) & 0x1f;
+            table.subtracts[32 - numBits] = code1 >>> shiftVal;
 
             code2 =  DataUtil.getLEInt(fileData, pos + 4);
             if (code2 != -1) {
                 // so we can calculate len bytes.
                 pos += 8;
             }
+            numBits += 1;
         }
         table.lenBytes = pos + 8 - offset;
 
-        table.buildValues2();
+        table.buildGbits();
         return table;
     }
 
+    static class BitstreamState
+    {
+        public BitstreamState(byte[] data, int pos) {
+            this.data = data;
+            streamPos = pos;
+            bitBuffer = 0;
+            bitsInBuffer = 0;
+        }
+
+        void setStreamPos(int pos)
+        {
+            streamPos = pos;
+            bitBuffer = 0;
+            bitsInBuffer = 0;
+        }
+
+        long readBits(int num)
+        {
+            if (num <= 0){
+                return 0;
+            }
+            while (bitsInBuffer < num) {
+                long bVar2 = data[streamPos++];
+                int xx = 0x38 - bitsInBuffer;
+                bitBuffer |= bVar2 << xx;
+                bitsInBuffer += 8;
+            }
+
+            long rval = bitBuffer >>> (64 - num);
+
+            bitsInBuffer -= num;
+            bitBuffer <<= num;
+            return rval;
+        }
+
+        long bitBuffer;
+        int bitsInBuffer;
+        int streamPos;
+        byte[] data;
+    }
 
     private void extractVQ(int pixelWidth, int pixelHeight, int chunkStartOffset, int deltaOffset, int compressedDataOffset, int pageNum)
     {
-
         byte[] auStack_1c0 = new byte[256];
-        int[] puVar40 = {0,0};
 
         // pageNum is 100 * y + x ... so 4849 for example
         // chunkStartOffset is the start of the page data (i.e. the directory)
@@ -302,7 +376,7 @@ public class LevelTexDecode
 
         var table2 = decodeHuffman(off2);
 
-        int off3 = off2 + table2.lenBytes;
+        int off3 = off2 + table2.lenBytes;          // stream1
         table1.buildHuffman(v2, off3, fileData);
 
         int blocksWidth = 1;
@@ -323,293 +397,205 @@ public class LevelTexDecode
 
         Logger.info("pixel width = {}, bw = {}, pixel height = {}, bh = {}", pixelWidth, bw, pixelHeight, bh);
 
-        int compressedData2 = compressedDataOffset + 4;
-
-        int iStack_94 = 0x40 - blocksHeight;
-        int iStack_98 = 0x40 - blocksWidth;
-
         long uStack_1e0 = 0;
-        int iStack_1d8 = 0;
+        BitstreamState bitstreamState2 = new BitstreamState(fileData, compressedDataOffset + 4);
+
         while( true ) {
-            long x0 = 0;
-            long uVar34 = uStack_1e0;
-            // read blocksWidth bits from stream into iStack9c
-            if (blocksWidth != 0) {
-                for (; iStack_1d8 < blocksWidth; iStack_1d8 += 8) {
-                    long bVar2 = fileData[compressedData2];
-                    int xx = 0x38 - iStack_1d8;
-                    compressedData2++;
-                    uVar34 |= bVar2 << xx;
-                }
-                uStack_1e0 = uVar34 << blocksWidth;
-                iStack_1d8 -= blocksWidth;
-                x0 = (uVar34 >>> iStack_98);
-            }
-            long y0 = 0;
-            uVar34 = uStack_1e0;
-            // read blocksHeight bits into y0
-            if (blocksHeight != 0) {
-                for (; iStack_1d8 < blocksHeight; iStack_1d8 += 8) {
-                    long bVar2 = fileData[compressedData2];
-                    y0 = 0x38 - iStack_1d8;
-                    compressedData2++;
-                    uVar34 |= bVar2 << y0;
-                }
-                uStack_1e0 = uVar34 << blocksHeight;
-                iStack_1d8 -= blocksHeight;
-                y0 = (uVar34 >>>  iStack_94);
-            }
-            long x1 = 0;
-            uVar34 = uStack_1e0;
-            // read blocksWidth bits into x1
-            if (blocksWidth != 0) {
-                for (; iStack_1d8 < blocksWidth; iStack_1d8 += 8) {
-                    long bVar2 = fileData[compressedData2];
-                    int yy = 0x38 - iStack_1d8;
-                    compressedData2++;
-                    uVar34 |= bVar2 << yy;
-                }
-                uStack_1e0 = uVar34 << blocksWidth;
-                iStack_1d8 -= blocksWidth;
-                x1 = (uVar34 >>> iStack_98);
-            }
-            long y1 = 0;
-            uVar34 = uStack_1e0;
-            // read blocksHeight bits into y1
-            if (blocksHeight != 0) {
-                for (; iStack_1d8 < (int) blocksHeight; iStack_1d8 += 8) {
-                    long bVar2 = fileData[compressedData2];
-                    int shift = 0x38 - iStack_1d8;
-                    compressedData2++;
-                    uVar34 |= bVar2 << shift;
-                }
-                uStack_1e0 = uVar34 << blocksHeight;
-                iStack_1d8 -= blocksHeight;
-                y1 = (uVar34 >>>  iStack_94);
-            }
+            long x0 = bitstreamState2.readBits(blocksWidth);
+            long y0 = bitstreamState2.readBits(blocksHeight);
+            long x1 = bitstreamState2.readBits(blocksWidth);
+            long y1 = bitstreamState2.readBits(blocksHeight);
+
             if (x1 < x0) break;
 
             long y = y0;
 
-            if (y0 < y1){
-                do {
-                    long x = x0;
-                    if (x0 < x1){
-                        long pixel_y = y * 0x10;
-                        int iStack_64 = 0;
-                        long pixel_y_bot = pixel_y + 0x10;
-                        // Assume this is chunk start offset.
-                        //pcStack_6c = texturePageTable + pageNum;
-                        var pcStack_6c = chunkStartOffset;
-                        do {
-                            //puVar40 = &uStack_1e0;
-                            y0 = 0;
-                            long iStack_74 = x * 0x10;
-                            int sVar3 = pixelWidth;
-                            long lVar18 = iStack_74 + 0x10;
-                            if (sVar3 <= lVar18){
-                                lVar18 = sVar3;
-                            }
-                            uVar34 = uStack_1e0;
-                            var lVar44 = pixel_y_bot;
-                            if (pixelHeight <= pixel_y_bot) {
-                                lVar44 = pixelHeight;
-                            }
-                            // read 1 bit from the stream
-                            for (; iStack_1d8 < 1; iStack_1d8 += 8) {
-                                long bVar2 = fileData[compressedData2];
-                                int shift = 0x38 - iStack_1d8;
-                                compressedData2++;
-                                uVar34 |= bVar2 << shift;
-                            }
-                            var uVar16 = uVar34 << 1;
-                            iStack_1d8 += -1;
+            while (y < y1) {
+                long x = x0;
+                int iStack_64 = 0;
+                long pixel_y = y * 0x10;
 
-                            uStack_1e0 = uVar16;
-
-                            if (uVar34 < 0) {
-                                // Bit read is 1
-                                // Read 24 bits
-                                for (; iStack_1d8 < 0x18; iStack_1d8 += 8) {
-                                    long bVar2 = fileData[compressedData2];
-                                    compressedData2++;
-                                    uVar16 |= bVar2 << (0x38 - iStack_1d8);
-                                }
-                                uStack_1e0 = uVar16 << 0x18;
-                                iStack_1d8 = iStack_1d8 + -0x18;
-
-                                var uVar43 = (uVar16 >>> 0x20);
-                                uVar34 = (uVar43 >> 8) & 7;
-
-                                uVar43 >>= 8;
-                                var palX = uVar43 >> 3;
-
-                                var cVar1 = fileData[pcStack_6c];
-                                /*
-                                if (cVar1 < 9) {
-                                    pbStack_b4 = (byte *)((int)world->segment_cache +
-                                                         (palX & 0x1ffff) +
-                                                         (uint)(byte)(&texturePageSegLoc)
-                                                                     [((int)uVar38 >> 0x14) + cVar1 * 0x80] * 0x20000);
-                                  } else {
-                                    pbStack_b4 = (byte *)((int)&texturePageLoc[cVar1] + palX);
-                                  }
-
-                                */
-                                var pbStack_b4 = chunkStartOffset + (int)palX;
-
-                                int uStack_b8 = 0;
-                                int uStack_c0 = 0;
-                                long uStack_1c8 = 0;
-                                long uStack_1d0 = 0;
-                                int uStack_1c4 = pbStack_b4;
-
-                                if (uVar34 != 0) {
-                                    do {
-                                        long bVar2 = fileData[uStack_1c4];
-                                        uStack_1c4++;
-                                        long palY = 0x38 - uStack_1c8;
-                                        uStack_1c8 += 8;
-                                        uStack_1d0 |= bVar2 << palY;
-                                    } while (uStack_1c8 < uVar34);
-
-                                    uStack_1d0 <<= uVar34;
-                                    uStack_1c8 -= uVar34;
-                                }
-                                for (; uStack_1c8 < 1; uStack_1c8 += 8) {
-                                    uStack_1d0 |= (long) fileData[uStack_1c4] << (0x38 - uStack_1c8);
-                                    uStack_1c4++;
-                                }
-                                uStack_1d0 = uStack_1d0 << 1;
-                                uStack_1c8--;
-                            }
-                            var lVar42 = pixel_y;
-
-                            // data following second huffman table
-                            if (DataUtil.getLEInt(fileData, off3) == 0) {
-                                // use huffman table 1
-                                for (; lVar42 < lVar44; lVar42 = ((int)lVar42 + 2)) {
-                                    int ytop = (int)y0 * 0x20;
-                                    int ybot = ytop + 0x10;
-                                    y0 += 1;
-                                    for (long iVar37 = iStack_74; iVar37 < lVar18; iVar37 += 2) {
-                                        auStack_1c0[ytop] = huffmanTemp[0];
-                                        auStack_1c0[ytop + 1] = huffmanTemp[1];
-                                        auStack_1c0[ybot] = huffmanTemp[2] ;
-                                        auStack_1c0[ybot + 1] = huffmanTemp[3];
-
-                                        ybot += 2;
-                                        ytop += 2;
-                                    }
-                                }
-                            } else {
-                                // use huffman table 2 to find the entry in huffman table 1
-                                for (; lVar42 < lVar44; lVar42 = ((int)lVar42 + 2)) {
-                                    long lVar45 = iStack_74;
-                                    long palY = y0 * 0x20;
-                                    long iVar19 = palY + 0x10;
-                                    y0 += 1;
-                                    if (lVar45 < lVar18) {
-                                        do {
-                                            if ((int)puVar40[1] < 0x20) {
-                                                do {
-                                                    pbVar15 = *(byte **)((int)puVar40 + 0xc);
-                                                    uVar34 = puVar40[1];
-                                                    bVar2 = *pbVar15;
-                                                    iVar37 = (int)uVar34 + 8;
-                                                    *(byte **)((int)puVar40 + 0xc) = pbVar15 + 1;
-                                                    *(int *)(puVar40 + 1) = iVar37;
-                                                    *puVar40 = *puVar40 | (ulong)bVar2 << (long)(0x38 - (int)uVar34);
-                                                } while (iVar37 < 0x20);
-                                                iVar37 = (int)puVar40[1];
-                                            } else {
-                                                iVar37 = (int)puVar40[1];
-                                            }
-                                            uVar34 = *puVar40;
-                                            *(int *)(puVar40 + 1) = iVar37 + -0x20;
-                                            uVar43 = (uint)(uVar34 >> 0x20);
-                                            lVar25 = (long)(int)(uVar43 >> 2);
-                                            iVar20 = 0;
-                                            auVar26 = _pextlw(lVar25,lVar25);
-                                            auVar26 = _pextlw(auVar26._0_8_,auVar26._0_8_);
-                                            puVar38 = gbits;
-                                            uVar28 = gbits[0];
-                                            uVar30 = gbits[1];
-                                            uVar31 = gbits[2];
-                                            uVar33 = gbits[3];
-                                            do {
-                                                puVar38 = puVar38 + 4;
-                                                auVar10._4_4_ = uVar30;
-                                                auVar10._0_4_ = uVar28;
-                                                auVar10._8_4_ = uVar31;
-                                                auVar10._12_4_ = uVar33;
-                                                auVar36 = _pcgtw(auVar10,auVar26);
-                                                auVar36 = _ppach(in_zero_qw,auVar36);
-                                                auVar36 = _ppacb(in_zero_qw,auVar36);
-                                                uVar28 = *puVar38;
-                                                uVar30 = puVar38[1];
-                                                uVar31 = puVar38[2];
-                                                uVar33 = puVar38[3];
-                                                uVar35 = _plzcw(auVar36._0_8_ >> 1);
-
-                                                palX = (int)uVar35 + 1 >> 3;
-                                                iVar20 += palX;
-                                            } while (-1 < (int)(palX - 4));
-                                            palX = gsubtracts - iVar20;
-                                            *puVar40 = uVar34 << 0x20;
-                                            iVar20 = (&gsubtracts)[palX];
-                                            if ((long)(int)palX != 0) {
-                                                *(uint *)(puVar40 + 1) = iVar37 + -0x20 + palX;
-                                                *puVar40 = (uVar34 << 0x20) >> (long)(int)palX |
-                                                        ((long)uVar34 >> 0x20 & ~(long)(-1 << (palX & 0x1f)) & 0xffffffff) << (long)(int)(0x40 - palX);
-                                            }
-                                            iVar20 = ((uVar43 >> (palX & 0x1f)) - iVar20) * 4;
-
-                                            auStack_1c0[palY] = huffmanTemp[iVar20];
-                                            auStack_1c0[palY + 1] = huffmanTemp[iVar20+1];
-                                            auStack_1c0[iVar19] = huffmanTemp[iVar20+2];
-                                            auStack_1c0[iVar19 + 1] = huffmanTemp[iVar20+3];
-
-                                            lVar45 += 2;
-                                            palY += 2;
-                                            iVar19 += 2;
-                                        } while (lVar45 < lVar18);
-                                    }
-                                }
-                            }
-
-
-                            /*
-                            y0 = 0;
-                            iVar19 = 0;
-                            palY = 0;
-                            do {
-                                iVar37 = 7;
-                                puVar39 = (undefined1 *)((iStack_64 * 8 + palY) * 4 + (int)puStack_78);
-                                do {
-                                    pbVar15 = &unscrambleTable + y0;
-                                    pbVar22 = &DAT_006e9081 + y0;
-                                    iVar37 += -1;
-                                    pbVar24 = &DAT_006e9082 + y0;
-                                    pbVar29 = &DAT_006e9083 + y0;
-                                    y0 += 4;
-                                    *puVar39 = auStack_1c0[*pbVar15];
-                                    puVar39[1] = auStack_1c0[*pbVar22];
-                                    puVar39[2] = auStack_1c0[*pbVar24];
-                                    puVar39[3] = auStack_1c0[*pbVar29];
-                                    puVar39 = puVar39 + 4;
-                                } while (-1 < iVar37);
-                                iVar19 += 1;
-                                palY += iStack_84;
-                            } while (iVar19 < 8);
-                            */
-
-                            x++;
-                            iStack_64++;
-                        } while (x < x1);
+                long pixel_y_bot = pixel_y + 0x10;
+                while (x < x1) {
+                    //puVar40 = &uStack_1e0;
+                    var currentBitstream = bitstreamState2;
+                    BitstreamState bitstreamState3 = new BitstreamState(fileData, 0);
+                    y0 = 0;
+                    long iStack_74 = x * 0x10;
+                    int sVar3 = pixelWidth;
+                    long lVar18 = iStack_74 + 0x10;
+                    if (sVar3 <= lVar18){
+                        lVar18 = sVar3;
                     }
-                    ++y;
-                } while (y < y1);
+                    long uVar34 = uStack_1e0;
+                    var lVar44 = pixel_y_bot;
+                    if (pixelHeight <= pixel_y_bot) {
+                        lVar44 = pixelHeight;
+                    }
+                    var flag = bitstreamState2.readBits(1);
+
+                    if (flag != 0) {
+                        // Read 24 bits
+                        var bits24 = bitstreamState2.readBits(24);
+                        var pageOffset = (int)bits24 >>> 3;
+                        int skipBits = (int)(bits24 & 0x07);
+
+                        bitstreamState3.setStreamPos(chunkStartOffset + pageOffset);
+                        currentBitstream = bitstreamState3;
+
+                        if (skipBits != 0) {
+                            bitstreamState3.readBits(skipBits);
+                        }
+                        bitstreamState3.readBits(1);
+                    }
+                    var lVar42 = pixel_y;
+
+                    // data following second huffman table
+                    if (DataUtil.getLEInt(fileData, off3) == 0) {
+                        // use huffman table 1
+                        for (; lVar42 < lVar44; lVar42 = ((int)lVar42 + 2)) {
+                            int ytop = (int)y0 * 0x20;
+                            int ybot = ytop + 0x10;
+                            y0 += 1;
+                            for (long iVar37 = iStack_74; iVar37 < lVar18; iVar37 += 2) {
+                                auStack_1c0[ytop] = table1.huffman.get(0);
+                                auStack_1c0[ytop + 1] = table1.huffman.get(1);
+                                auStack_1c0[ybot] = table1.huffman.get(2);
+                                auStack_1c0[ybot + 1] = table1.huffman.get(3);
+
+                                ybot += 2;
+                                ytop += 2;
+                            }
+                        }
+                    } else {
+                        // use huffman table 2 to find the entry in huffman table 1
+                        for (; lVar42 < lVar44; lVar42 = ((int)lVar42 + 2)) {
+                            long lVar45 = iStack_74;
+                            int palY = (int)y0 * 0x20;
+                            int iVar19 = palY + 0x10;
+                            y0 += 1;
+                            if (lVar45 < lVar18) {
+                                do {
+                                    long bits32 = currentBitstream.readBits(32);
+
+                                    long lVar25 = (bits32 >>> 2);
+                                    int sumNumLeadingZeroBytes = 0;
+
+                                    int puVar38 = 0;
+                                    int numLeadingZeroBytes = 0;
+                                    do {
+                                        int uVar30 = table2.gbits[puVar38 + 0];
+                                        int uVar31 = table2.gbits[puVar38 + 1];
+                                        int uVar32 = table2.gbits[puVar38 + 2];
+                                        int uVar33 = table2.gbits[puVar38 + 3];
+
+                                        int auVar36_3 = uVar33 > lVar25 ? -1 : 0;
+                                        int auVar36_2 = uVar32 > lVar25 ? -1 : 0;
+                                        int auVar36_1 = uVar31 > lVar25 ? -1 : 0;
+                                        int auVar36_0 = uVar30 > lVar25 ? -1 : 0;
+
+                                        numLeadingZeroBytes = 0;
+                                        if (auVar36_3 == 0){
+                                            ++numLeadingZeroBytes;
+                                            if (auVar36_2 == 0){
+                                                ++numLeadingZeroBytes;
+                                                if (auVar36_1 == 0){
+                                                    ++numLeadingZeroBytes;
+                                                    if (auVar36_0 == 0){
+                                                        ++numLeadingZeroBytes;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        sumNumLeadingZeroBytes += numLeadingZeroBytes;
+                                        puVar38 = puVar38 + 4;
+                                    } while (numLeadingZeroBytes > 3);
+                                    int subtractsIdx = table2.subtracts[0] - sumNumLeadingZeroBytes;
+                                    int safeIndex = subtractsIdx & 0x1F;
+
+                                    // push back into the stream.
+                                    if (subtractsIdx != 0) {
+                                        currentBitstream.bitsInBuffer += subtractsIdx;
+                                        currentBitstream.bitBuffer >>>= subtractsIdx;   // make space
+                                        int bbLeftShift = 0x40 - subtractsIdx;
+                                        long mask = (~(-1 << safeIndex));
+                                        long keep = bits32 & mask;
+                                        currentBitstream.bitBuffer |= keep << bbLeftShift;
+                                    }
+
+                                    int huffIndex = (((int)bits32 >>> safeIndex) - table2.subtracts[subtractsIdx]) * 4;
+
+                                    auStack_1c0[palY] = table1.huffman.get(huffIndex);
+                                    auStack_1c0[palY + 1] = table1.huffman.get(huffIndex+1);
+                                    auStack_1c0[iVar19] = table1.huffman.get(huffIndex+2);
+                                    auStack_1c0[iVar19 + 1] = table1.huffman.get(huffIndex+3);
+
+                                    lVar45 += 2;
+                                    palY += 2;
+                                    iVar19 += 2;
+                                } while (lVar45 < lVar18);
+                            }
+                        }
+                    }
+
+
+                    /*
+                    y0 = 0;
+                    iVar19 = 0;
+                    palY = 0;
+                    do {
+                        iVar37 = 7;
+                        puVar39 = (undefined1 *)((iStack_64 * 8 + palY) * 4 + (int)puStack_78);
+                        do {
+                            pbVar15 = &unscrambleTable + y0;
+                            pbVar22 = &DAT_006e9081 + y0;
+                            iVar37 += -1;
+                            pbVar24 = &DAT_006e9082 + y0;
+                            pbVar29 = &DAT_006e9083 + y0;
+                            y0 += 4;
+                            *puVar39 = auStack_1c0[*pbVar15];
+                            puVar39[1] = auStack_1c0[*pbVar22];
+                            puVar39[2] = auStack_1c0[*pbVar24];
+                            puVar39[3] = auStack_1c0[*pbVar29];
+                            puVar39 = puVar39 + 4;
+                        } while (-1 < iVar37);
+                        iVar19 += 1;
+                        palY += iStack_84;
+                    } while (iVar19 < 8);
+                    */
+
+                    /*
+                      palY = 0;
+                      iVar32 = 0;
+                      iVar18 = 0;
+                      do {
+                        iVar19 = 7;
+                        // output
+                        pbVar34 = (byte *)((iStack_64 * 8 + iVar18) * 4 + (int)apuStack_210[0]);
+                        do {
+                          pbVar14 = unscrambleTable + palY;
+                          iVar38 = palY + 1;
+                          iVar19 += -1;
+                          iVar24 = palY + 2;
+                          iVar25 = palY + 3;
+                          palY += 4;
+                          *pbVar34 = auStack_1c0[*pbVar14];
+                          pbVar34[1] = auStack_1c0[unscrambleTable[iVar38]];
+                          pbVar34[2] = auStack_1c0[unscrambleTable[iVar24]];
+                          pbVar34[3] = auStack_1c0[unscrambleTable[iVar25]];
+                          pbVar34 = pbVar34 + 4;
+                        } while (-1 < iVar19);
+                        iVar32 += 1;
+                        iVar18 += width * 8;
+                      } while (iVar32 < 8);
+                     */
+
+                    x++;
+                    iStack_64++;
+                }
+
+                ++y;
+
             }
         }
     }
