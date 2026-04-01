@@ -290,7 +290,8 @@ public class LevelTexDecode
             return;
         }
         PalEntry[] palette = PalEntry.readPalette(fileData, palOffset, 16, 16);
-        palette = PalEntry.unswizzlePalette(palette);
+        // vq palette is not swizzled
+        //palette = PalEntry.unswizzlePalette(palette);
 
         // offset to first huffman table
         int off1 = palOffset + numPalEntries * 4;

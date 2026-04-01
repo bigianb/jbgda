@@ -31,7 +31,7 @@ public class ExtractFiles {
         //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "cellar1");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, false, "e1l1a");
         //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "airarena");
-        new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "anthill1");
+        new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "aydark");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -304,6 +304,9 @@ public class ExtractFiles {
         var filename = path.getFileName().toString();
         var outDir = path.getParent();
         var worldName = filename.replace(".world", "");
+        if (worldName.equals("gaydark")){
+            worldName = "faydark";
+        }
         var levelTexPath = gameDataPath.resolve(worldName.toUpperCase() + ".TEX");
 
         byte[] worldData = Files.readAllBytes(path);
