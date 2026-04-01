@@ -21,7 +21,9 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Decodes a worldname.tex file.
@@ -105,9 +107,9 @@ public class LevelTexDecode
         return DataUtil.getLEInt(fileData, offset);
     }
 
-    public void extractAll(File outDirFile) throws IOException
+    public Map<String, LevelTexImgInfo> extractAll(File outDirFile) throws IOException
     {
-
+        Map<String, LevelTexImgInfo> infoMap = new HashMap<>();
         for (var entry : texEntries){
             int numTexturesInEntry = DataUtil.getLEInt(fileData, entry.directoryOffset);
             for (int i=1; i <= numTexturesInEntry; ++i) {
@@ -115,13 +117,15 @@ public class LevelTexDecode
 
                 File outFile = new File(outDirFile, "leveltex_"+entry.cellOffset + "_" + i + ".png");
                 try {
-                    extract(outFile, offset, entry.directoryOffset, entry.cellOffset);
+                    var info = extract(outFile, offset, entry.directoryOffset, entry.cellOffset);
+                    infoMap.put(entry.cellOffset + "_" + i, info);
                 } catch (RuntimeException e) {
                     Logger.warn("Failed to decode {}", outFile);
                     throw new RuntimeException(e);
                 }
             }
         }
+        return infoMap;
     }
 
     private int convertOffset(int offIn, int segmentStartOffset, int directoryEntryOffset)
@@ -461,7 +465,15 @@ public class LevelTexDecode
         ImageIO.write(image, "png", outputfile);
     }
 
-    public void extract(File outputfile, int offset, int chunkStartOffset, int cellOffset) throws IOException
+    public static class LevelTexImgInfo
+    {
+        public int width;
+        public int height;
+    }
+
+
+
+    public LevelTexImgInfo extract(File outputfile, int offset, int chunkStartOffset, int cellOffset) throws IOException
     {
         var deltaOffset = convertOffset(0, chunkStartOffset, offset);
 
@@ -475,16 +487,20 @@ public class LevelTexDecode
 
         int compressedDataOffset = header10 + deltaOffset;
 
+        LevelTexImgInfo info = new LevelTexImgInfo();
+        info.width = pixelWidth;
+        info.height = pixelHeight;
+
         // CHAMPIONS OF NORRATH have flag 1 set whilst BGDA, RTA and JLH do not
         if (usesVQCompression){
             extractVQ(outputfile, pixelWidth, pixelHeight, chunkStartOffset, deltaOffset, compressedDataOffset, cellOffset);
-            return;
+            return info;
         }
 
         int palOffset = DataUtil.getLEInt(fileData, compressedDataOffset) + deltaOffset;
         if (compressedDataOffset <= 0 || compressedDataOffset >= fileData.length)
         {
-            return;
+            return info;
         }
         int decodeOffset = palOffset + 0xc00;
 
@@ -515,6 +531,7 @@ public class LevelTexDecode
             }
         }
         ImageIO.write(image, "png", outputfile);
+        return info;
     }
 
     private final int[] backJumpTable = new int[]{-1, -16, -17, -15, -2};

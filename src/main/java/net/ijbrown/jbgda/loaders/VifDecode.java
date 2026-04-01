@@ -55,6 +55,12 @@ public class VifDecode
         return meshes;
     }
 
+    public static Mesh readMeshFromVerts(byte[] data, int startOffset, int endOffset)
+    {
+        var chunks = readVerts(data, startOffset, endOffset);
+        return ChunksToMesh(chunks);
+    }
+
     // Finds which vertex weight object to use for the given vertex.
     private static VertexWeight FindVertexWeight(List<VertexWeight> weights, int vertexNum)
     {
@@ -263,7 +269,7 @@ public class VifDecode
     }
 
     // Check whether the winding for this face is correct.
-    // 1 is correct, -1 is incorrect and 0 is indeterminate.
+    // 1 is correct, -1 is incorrect, and 0 is indeterminate.
     private static int isWoundCorrectly(List<Vec3F> vertices, List<Vec3F> normals, int vidx1, int vidx2, int vidx3) {
         // Find the expected normal for the triangle by taking the cross product of 2 edges
         // Compare that with the average of the vector normals.
@@ -418,7 +424,7 @@ public class VifDecode
     private static final int MSCAL_CMD = 0x14;
     private static final int STMASK_CMD = 0x20;
 
-    public List<Chunk> readVerts(byte[] fileData, int offset, int endOffset)
+    public static List<Chunk> readVerts(byte[] fileData, int offset, int endOffset)
     {
         List<Chunk> chunks = new ArrayList<>();
         Chunk currentChunk = new Chunk();

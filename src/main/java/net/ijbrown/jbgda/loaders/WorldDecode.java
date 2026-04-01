@@ -15,11 +15,14 @@
 */
 package net.ijbrown.jbgda.loaders;
 
+import net.ijbrown.jbgda.exporters.ObjExporter;
+import org.tinylog.Logger;
+
 import java.io.*;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Decodes an xxx.world file.
@@ -114,7 +117,7 @@ public class WorldDecode
         if (miniMapOffset != 0) {
             TexDecode texDecode = new TexDecode();
             try {
-                texDecode.extract(outDir, fileData, miniMapOffset, outputFilename, 0);
+                texDecode.extract(outDir, fileData, miniMapOffset, outputFilename + ".tex", 0);
             } catch (RuntimeException e) {
                 e.printStackTrace();
             }
@@ -126,6 +129,7 @@ public class WorldDecode
         StringBuilder sb = new StringBuilder();
 
         File worldMeshDir = new File(outDirFile, "world_meshes");
+        worldMeshDir.mkdirs();
 
         int numElements = DataUtil.getLEInt(fileData, 0);
         sb.append("Num Elements: ").append(HexUtil.formatHex(numElements)).append("\r\n");
@@ -301,10 +305,20 @@ public class WorldDecode
         List<Integer> meshOffsets = new ArrayList<>();
         List<Integer> meshLengths = new ArrayList<>();
 
+        class MeshDataInfo
+        {
+            public int offset;
+            public int length;
+            public int texNo;
+            public int texPageNo;
+        }
+
+        List<MeshDataInfo> mesInfos = new ArrayList<>();
+
         sb.append("-----------------------------------------------------\r\n");
         sb.append("\r\n");
         sb.append("Polyset array - ").append(numElements).append(" elements\r\n \r\n");
-        for (int i = 0; i < Math.min(numElements, 2); ++i) {
+        for (int i = 0; i < numElements; ++i) {
             int off = polysets + i * 0x3C;
             if (gameType == GameType.DARK_ALLIANCE) {
                 off = polysets + i * 0x38;
@@ -346,10 +360,13 @@ public class WorldDecode
             sb.append(cellx2).append(", ").append(celly2).append("\r\n");
 
             // Chunk in texture
-            sb.append("    tex num: ").append(DataUtil.getLEInt(fileData, off)/0x40).append("\r\n");
+            int textureNumber = DataUtil.getLEInt(fileData, off)/0x40;
+            sb.append("    tex num: ").append(textureNumber).append("\r\n");
             off += 4;
+            int texturePageNo;
             if (gameType == GameType.DARK_ALLIANCE) {
-                sb.append("    tex cell: ").append(DataUtil.getLEShort(fileData, off)).append("\r\n");
+                texturePageNo = DataUtil.getLEShort(fileData, off);
+                sb.append("    tex cell: ").append(texturePageNo).append("\r\n");
                 off += 2;
                 sb.append("    pos x: ").append(DataUtil.getLEShort(fileData, off)).append("\r\n");
                 sb.append("    pos y: ").append(DataUtil.getLEShort(fileData, off + 0x2)).append("\r\n");
@@ -370,35 +387,25 @@ public class WorldDecode
                 sb.append("    pos y: ").append(DataUtil.getLEInt(fileData, off + 0x4)).append("\r\n");
                 sb.append("    pos z: ").append(DataUtil.getLEInt(fileData, off + 0x8)).append("\r\n");
                 off += 12;
-                sb.append("    tex PageNo: ").append(DataUtil.getLEShort(fileData, off)).append("\r\n");
+                texturePageNo = DataUtil.getLEShort(fileData, off);
+                sb.append("    tex PageNo: ").append(texturePageNo).append("\r\n");
                 off += 2;
                 int rotFlags = DataUtil.getLEInt(fileData, off);
                 sb.append("    rotFlags: ").append(HexUtil.formatHexUShort(rotFlags)).append("\r\n");
             }
             sb.append("}\r\n");
 
-            if (!meshOffsets.contains(meshOffset)) {
+            if (meshDataLen != 0 && !meshOffsets.contains(meshOffset)) {
                 meshOffsets.add(meshOffset);
-                meshLengths.add(meshDataLen);
-            }
-
-        }
-
-        Iterator<Integer> it = meshLengths.iterator();
-        for (int meshOffset : meshOffsets) {
-            Integer len = it.next();
-            VifDecode vifDecode = new VifDecode();
-            String meshName = HexUtil.formatHex(meshOffset) + "_mesh";
-
-            try {
-                byte nregs = fileData[meshOffset + 0x10];
-                int startOffset = (nregs + 2) * 0x10;
-                vifDecode.readVerts(fileData, meshOffset + startOffset, meshOffset + len * 0x10);
-                //vifDecode.writeObj(meshName, worldMeshDir, 240, 48, 128.0);
-            } catch (Exception e) {
-                e.printStackTrace();
+                mesInfos.add(new MeshDataInfo() {{
+                    this.offset = meshOffset;
+                    this.length = meshDataLen;
+                    this.texNo = textureNumber;
+                    this.texPageNo = texturePageNo;
+                }});
             }
         }
+
         sb.append("-----------------------------------------------------\r\n");
         sb.append("\r\n");
         sb.append("Elements (38) array - ").append(numElements).append(" elements\r\n \r\n");
@@ -416,28 +423,59 @@ public class WorldDecode
             }
             sb.append("\r\n");
         }
+        File levelTexturesDir = new File(outDirFile, "level_textures");
+        levelTexturesDir.mkdirs();
+
+        Map<String, LevelTexDecode.LevelTexImgInfo> infoMap = null;
         if (gameType == GameType.DARK_ALLIANCE) {
-            decodeTextureGridBGDA(sb, levelTexFile, outDirFile);
+            decodeTextureGridBGDA(sb, levelTexFile, levelTexturesDir);
         } else {
-            decodeLevelTexture(sb, levelTexFile, outDirFile);
+            infoMap = decodeLevelTexture(sb, levelTexFile, levelTexturesDir);
+        }
+
+        if (infoMap != null) {
+            for (var meshInfo : mesInfos) {
+                String coord = meshInfo.texPageNo + "_" + meshInfo.texNo;
+                String meshName = HexUtil.formatHex(meshInfo.offset) + "_" + coord + "_mesh";
+                var info = infoMap.get(coord);
+                if (info == null) {
+                    Logger.warn("No texture info for " + coord);
+                    continue;
+                }
+
+                try {
+                    byte nregs = fileData[meshInfo.offset + 0x10];
+                    int startOffset = (nregs + 2) * 0x10;
+                    var mesh = VifDecode.readMeshFromVerts(fileData, meshInfo.offset + startOffset, meshInfo.offset + meshInfo.length * 0x10);
+                    if (mesh.vertices.isEmpty()) {
+                        Logger.warn("Empty mesh at " + HexUtil.formatHex(meshInfo.offset));
+                        continue;
+                    }
+                    String objText = ObjExporter.getObjText(mesh, coord, info.width, info.height);
+                    writeFile(meshName + ".obj", worldMeshDir.toPath(), objText);
+                } catch (Exception e) {
+                    Logger.error("Failed to export mesh at " + HexUtil.formatHex(meshInfo.offset), e);
+                }
+            }
         }
         return sb.toString();
     }
 
-    private void decodeLevelTexture(StringBuilder sb, File levelTexFile, File outDirFile)
+    private Map<String, LevelTexDecode.LevelTexImgInfo> decodeLevelTexture(StringBuilder sb, File levelTexFile, File outDirFile)
     {
         LevelTexDecode levelTexDecoder = new LevelTexDecode(gameType);
         try {
             levelTexDecoder.read(levelTexFile);
         } catch (IOException ioe){
             sb.append("Failed to read level texture ").append(levelTexFile.getName());
-            return;
+            return null;
         }
         try {
-            levelTexDecoder.extractAll(outDirFile);
+            return levelTexDecoder.extractAll(outDirFile);
         } catch (IOException ioe){
             sb.append("Failed export level texture ").append(levelTexFile.getName());
         }
+        return null;
     }
 
     private void decodeTextureGridBGDA(StringBuilder sb, File levelTexFile, File outDirFile)
