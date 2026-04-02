@@ -303,7 +303,6 @@ public class WorldDecode
 
 
         List<Integer> meshOffsets = new ArrayList<>();
-        List<Integer> meshLengths = new ArrayList<>();
 
         class MeshDataInfo
         {
@@ -313,7 +312,7 @@ public class WorldDecode
             public int texPageNo;
         }
 
-        List<MeshDataInfo> mesInfos = new ArrayList<>();
+        List<MeshDataInfo> meshInfos = new ArrayList<>();
 
         sb.append("-----------------------------------------------------\r\n");
         sb.append("\r\n");
@@ -397,7 +396,7 @@ public class WorldDecode
 
             if (meshDataLen != 0 && !meshOffsets.contains(meshOffset)) {
                 meshOffsets.add(meshOffset);
-                mesInfos.add(new MeshDataInfo() {{
+                meshInfos.add(new MeshDataInfo() {{
                     this.offset = meshOffset;
                     this.length = meshDataLen;
                     this.texNo = textureNumber;
@@ -423,7 +422,7 @@ public class WorldDecode
             }
             sb.append("\r\n");
         }
-        File levelTexturesDir = new File(outDirFile, "level_textures");
+        File levelTexturesDir = new File(worldMeshDir, "level_textures");
         levelTexturesDir.mkdirs();
 
         Map<String, LevelTexDecode.LevelTexImgInfo> infoMap = null;
@@ -434,7 +433,21 @@ public class WorldDecode
         }
 
         if (infoMap != null) {
-            for (var meshInfo : mesInfos) {
+
+            StringBuilder matFile = new StringBuilder();
+            infoMap.forEach((k, v) -> {
+                matFile.append("newmtl ").append(k).append("\r\n");
+                matFile.append("Ka 1.000000 1.000000 1.000000\r\n");
+                matFile.append("Kd 1.000000 1.000000 1.000000\r\n");
+                matFile.append("map_Kd level_textures/leveltex_").append(k).append(".png\r\n");
+                matFile.append("\r\n");
+            });
+            try {
+                writeFile("material.mtl", worldMeshDir.toPath(), matFile.toString());
+            } catch (IOException e) {
+                Logger.error("Failed to write material file", e);
+            }
+            for (var meshInfo : meshInfos) {
                 String coord = meshInfo.texPageNo + "_" + meshInfo.texNo;
                 String meshName = HexUtil.formatHex(meshInfo.offset) + "_" + coord + "_mesh";
                 var info = infoMap.get(coord);

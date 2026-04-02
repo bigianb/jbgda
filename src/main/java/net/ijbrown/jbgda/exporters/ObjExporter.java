@@ -3,6 +3,7 @@ package net.ijbrown.jbgda.exporters;
 import net.ijbrown.jbgda.loaders.VifDecode;
 import net.ijbrown.jbgda.loaders.Vec3F;
 
+import java.util.List;
 import java.util.Locale;
 
 public class ObjExporter {
@@ -20,15 +21,16 @@ public class ObjExporter {
               .append(formatFloat(v.z))
               .append('\n');
         }
-
+        int w16 = width * 16;
+        int h16 = height * 16;
         for (VifDecode.UV uv : mesh.uvCoords) {
             if (uv != null) {
-                float u = (float) uv.u / width;
-                float v = (float) uv.v / height;
+                float u = (float) (uv.u % w16)/ w16;
+                float v = (float) (uv.v % h16) / h16;
 
                 sb.append("vt ")
-                  .append(formatFloat(u % 1.0f)).append(' ')
-                  .append(formatFloat(v % 1.0f))
+                  .append(formatFloat(u)).append(' ')
+                  .append(formatFloat(1.0f - v))
                   .append('\n');
             }
         }
