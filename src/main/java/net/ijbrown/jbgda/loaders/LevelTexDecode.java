@@ -209,7 +209,7 @@ public class LevelTexDecode
 
             table.values.add(code1 >>> 2);
             int shiftVal = (32 - numBits) & 0x1f;
-            table.subtracts[32 - numBits] = code1 >>> shiftVal;
+            table.subtracts[32 - numBits] = (code1 >>> shiftVal) - code2;
 
             Logger.debug("    numBits = {}, shiftVal = {}, code1 = {}, code2 = {}", numBits, shiftVal, code1, code2);
             Logger.debug("        tableVal = {}, subtracts = {}", table.values.getLast(), table.subtracts[32 - numBits]);
