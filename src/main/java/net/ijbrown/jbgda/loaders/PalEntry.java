@@ -9,7 +9,9 @@ public class PalEntry
 
     public int argb()
     {
-        return (a << 24) |
+        // PS2 0x80 is opaque whilst for PC etc it is 0xFF
+        int pca = a < 0 ? 0x7F : a;
+        return (pca << 25) |
                 ((r << 16) & 0xFF0000) |
                 ((g << 8) & 0xFF00) |
                 (b & 0xFF);

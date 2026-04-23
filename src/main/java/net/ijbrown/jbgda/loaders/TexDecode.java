@@ -77,7 +77,7 @@ public class TexDecode
                 for (int x = 0; x < tex.pixelsWidth && x < tex.targetWidth; ++x) {
                     PalEntry pixel = tex.pixels[y * tex.pixelsWidth + x];
                     if (pixel != null) {
-                        image.setRGB(x, y, pixel.rgb());
+                        image.setRGB(x, y, pixel.argb());
                     }
                 }
             }

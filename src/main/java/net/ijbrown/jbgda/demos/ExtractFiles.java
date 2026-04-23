@@ -31,7 +31,7 @@ public class ExtractFiles {
         //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "cellar1");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, false, "e1l1a");
         //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "airarena");
-        new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "keleth");
+        new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -56,11 +56,11 @@ public class ExtractFiles {
             extractLmps(gameDataPath, extractedPath, gameType);
             extractHDRDATArchives(gameDataPath, extractedPath, gameType);
         }
-        //convertFntFiles(extractedPath, gameType, pattern);
-        //convertTexFiles(extractedPath, gameType, pattern);
+        convertFntFiles(extractedPath, gameType, pattern);
+        convertTexFiles(extractedPath, gameType, pattern);
         //convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
-        //convertScriptFiles(extractedPath, gameType, pattern);
-        //convertObFiles(extractedPath, gameType, pattern);
+        convertScriptFiles(extractedPath, gameType, pattern);
+        convertObFiles(extractedPath, gameType, pattern);
         convertWorldFiles(gameDataPath, extractedPath, gameType, pattern);
     }
 
