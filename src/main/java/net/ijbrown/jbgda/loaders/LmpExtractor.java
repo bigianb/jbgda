@@ -73,7 +73,7 @@ public class LmpExtractor {
 
             Path outFilePath = outDir.resolve(subfileName);
             try (OutputStream out = new BufferedOutputStream(
-                    Files.newOutputStream(outFilePath, CREATE, APPEND))) {
+                    Files.newOutputStream(outFilePath))) {
                 out.write(fileData, fileStartOffset + subOffset, subLen);
             }
         }

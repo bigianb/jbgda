@@ -8,7 +8,8 @@ public enum GameType
     DARK_ALLIANCE("Dark Alliance"),
     CHAMPIONS_OF_NORRATH("Champions of Norrath"),
     CHAMPIONS_RTA("Return to Arms"),
-    JUSTICE_LEAGUE_HEROES("Justice League Heroes");
+    JUSTICE_LEAGUE_HEROES("Justice League Heroes"),
+    FALLOUT_BOS("Fallout Brotherhood of Steel");
 
     public String getName() {
         return name;

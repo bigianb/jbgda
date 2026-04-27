@@ -25,6 +25,7 @@ public class Config {
             case CHAMPIONS_OF_NORRATH -> rootDir += "/CHAMPIONS_OF_NORRATH";
             case CHAMPIONS_RTA -> rootDir += "/RTA";
             case JUSTICE_LEAGUE_HEROES -> rootDir += "/JUSTICE_LEAGUE_HEROES";
+            case FALLOUT_BOS -> rootDir += "/FALLOUTBOS";
         }
 
         return rootDir;
@@ -49,6 +50,7 @@ public class Config {
         switch (gameType) {
             case DARK_ALLIANCE, CHAMPIONS_OF_NORRATH, CHAMPIONS_RTA -> rootDir += "/BG/DATA";
             case JUSTICE_LEAGUE_HEROES -> rootDir += "/GAME/DATA";
+            case FALLOUT_BOS ->  rootDir += "/DATA";
         }
         return rootDir;
     }

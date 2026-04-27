@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static java.nio.file.FileVisitResult.CONTINUE;
@@ -22,7 +23,7 @@ import static java.nio.file.FileVisitResult.CONTINUE;
     Writes the results to a sibling directory.
  */
 public class ExtractFiles {
-    public static void main(String[] args) throws IOException {
+    static void main(String[] args) throws IOException {
 
         // Specify here if you want to extract all the GOB and LMP files (you only need to do this first time).
         // You can also specify a pattern which, if set, will restrict asset conversion to only files that contain
@@ -31,7 +32,8 @@ public class ExtractFiles {
         //new ExtractFiles().doExtract(GameType.DARK_ALLIANCE, false, "cellar1");
         //new ExtractFiles().doExtract(GameType.JUSTICE_LEAGUE_HEROES, false, "e1l1a");
         //new ExtractFiles().doExtract(GameType.CHAMPIONS_RTA, false, "airarena");
-        new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "keleth");
+        //new ExtractFiles().doExtract(GameType.CHAMPIONS_OF_NORRATH, false, "keleth");
+        new ExtractFiles().doExtract(GameType.FALLOUT_BOS, true, "");
     }
 
     public void doExtract(GameType gameType, boolean extractLmps, String pattern) throws IOException {
@@ -52,16 +54,20 @@ public class ExtractFiles {
             extractElfResources(FileSystems.getDefault().getPath(elfName), extractedPath, gameType);
         }
         if (extractLmps) {
-            extractGobs(gameDataPath, extractedPath, gameType);
-            extractLmps(gameDataPath, extractedPath, gameType);
-            extractHDRDATArchives(gameDataPath, extractedPath, gameType);
+            if (GameType.FALLOUT_BOS ==  gameType) {
+                extractClmps(gameDataPath, extractedPath);
+            } else {
+                extractGobs(gameDataPath, extractedPath, gameType);
+                extractLmps(gameDataPath, extractedPath, gameType);
+                extractHDRDATArchives(gameDataPath, extractedPath, gameType);
+            }
         }
         //convertFntFiles(extractedPath, gameType, pattern);
-        //convertTexFiles(extractedPath, gameType, pattern);
+        convertTexFiles(extractedPath, gameType, pattern);
         //convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
         //convertScriptFiles(extractedPath, gameType, pattern);
         //convertObFiles(extractedPath, gameType, pattern);
-        convertWorldFiles(gameDataPath, extractedPath, gameType, pattern);
+        //convertWorldFiles(gameDataPath, extractedPath, gameType, pattern);
     }
 
     private Memory loadElf(Path elfPath) throws IOException {
@@ -362,6 +368,26 @@ public class ExtractFiles {
 
                 } catch (RuntimeException e) {
                     Logger.info("Failed to convert {}", file.toString());
+                }
+            }
+        }
+    }
+
+    private void extractClmps(Path gameDataPath, Path extractedPath) throws IOException
+    {
+        String[] knownClumps = new String[]{"HUD.CLP", "ARMOR.CLP", "VA1.CLP", "SFX.CLP", "MOVIES.CLP", "SOUND.CLP"};
+
+        var extractor = new ClmpExtractor();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(gameDataPath, "*.CLP")) {
+            for (Path entry : stream) {
+                boolean isCandidate = Arrays.asList(knownClumps).contains(entry.getFileName().toString());
+                if (isCandidate) {
+                    var lmpFilename = entry.getFileName();
+                    Logger.info("Extracting {}", lmpFilename);
+                    var outDirname = lmpFilename.toString().replace('.', '_');
+                    var outPath = extractedPath.resolve(outDirname);
+                    Files.createDirectories(outPath);
+                    extractor.extractAll(lmpFilename, entry.toAbsolutePath(), outPath);
                 }
             }
         }

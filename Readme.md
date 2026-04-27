@@ -19,7 +19,7 @@ Look at the file `net.ijbrown.jbdga.loaders.Config` for details.
 ### Extraction
 
 Run `net.ijbrown.jbgda.demos.ExtractFiles` from the IDE to unpack the GOB and LMP files and
-to process the files contained in them.
+to process the files contained in them. You may need to uncomment some lines in the main method.
 This will create a directory called DATA_extracted alongside the DATA directory.
 Say there is a file called XXX.LMP in the DATA directory then a directory called `XXX_LMP` will be
 created in the DATA_extracted directory and populated with the contents of the LMP file.
