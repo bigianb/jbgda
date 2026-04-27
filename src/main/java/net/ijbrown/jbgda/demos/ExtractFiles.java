@@ -373,26 +373,6 @@ public class ExtractFiles {
         }
     }
 
-    private void extractClmps(Path gameDataPath, Path extractedPath) throws IOException
-    {
-        String[] knownClumps = new String[]{"HUD.CLP", "ARMOR.CLP", "VA1.CLP", "SFX.CLP", "MOVIES.CLP", "SOUND.CLP"};
-
-        var extractor = new ClmpExtractor();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(gameDataPath, "*.CLP")) {
-            for (Path entry : stream) {
-                boolean isCandidate = Arrays.asList(knownClumps).contains(entry.getFileName().toString());
-                if (isCandidate) {
-                    var lmpFilename = entry.getFileName();
-                    Logger.info("Extracting {}", lmpFilename);
-                    var outDirname = lmpFilename.toString().replace('.', '_');
-                    var outPath = extractedPath.resolve(outDirname);
-                    Files.createDirectories(outPath);
-                    extractor.extractAll(lmpFilename, entry.toAbsolutePath(), outPath);
-                }
-            }
-        }
-    }
-
     private void extractLmps(Path gameDataPath, Path extractedPath, GameType gameType) throws IOException {
         var extractor = new LmpExtractor(gameType);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(gameDataPath, "*.LMP")) {
