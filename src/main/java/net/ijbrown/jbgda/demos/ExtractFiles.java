@@ -62,12 +62,12 @@ public class ExtractFiles {
                 extractHDRDATArchives(gameDataPath, extractedPath, gameType);
             }
         }
-        //convertFntFiles(extractedPath, gameType, pattern);
+        convertFntFiles(extractedPath, gameType, pattern);
         convertTexFiles(extractedPath, gameType, pattern);
-        //convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
-        //convertScriptFiles(extractedPath, gameType, pattern);
-        //convertObFiles(extractedPath, gameType, pattern);
-        //convertWorldFiles(gameDataPath, extractedPath, gameType, pattern);
+        convertVifFiles(extractedPath, gameType, pattern, gameConfigs.getGameConfig(gameType));
+        convertScriptFiles(extractedPath, gameType, pattern);
+        convertObFiles(extractedPath, gameType, pattern);
+        convertWorldFiles(gameDataPath, extractedPath, gameType, pattern);
     }
 
     private Memory loadElf(Path elfPath) throws IOException {
@@ -375,20 +375,21 @@ public class ExtractFiles {
     
     private void extractClmps(Path gameDataPath, Path extractedPath) throws IOException
     {
+        // Streamable files are loaded on demand. The offsets in them are 4k blocks rather than 256 byte blocks.
+        // There does not seem to be a way to tell by the file content whether it is steamable.
+        // The game stores the streamable ones in the clump.dir file.
         String[] knownClumps = new String[]{"HUD.CLP", "ARMOR.CLP", "VA1.CLP", "SFX.CLP", "MOVIES.CLP", "SOUND.CLP"};
 
         var extractor = new ClmpExtractor();
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(gameDataPath, "*.CLP")) {
             for (Path entry : stream) {
-                boolean isCandidate = Arrays.asList(knownClumps).contains(entry.getFileName().toString());
-                if (isCandidate) {
-                    var lmpFilename = entry.getFileName();
-                    Logger.info("Extracting {}", lmpFilename);
-                    var outDirname = lmpFilename.toString().replace('.', '_');
-                    var outPath = extractedPath.resolve(outDirname);
-                    Files.createDirectories(outPath);
-                    extractor.extractAll(lmpFilename, entry.toAbsolutePath(), outPath);
-                }
+                boolean isStreamable = Arrays.asList(knownClumps).contains(entry.getFileName().toString());
+                var lmpFilename = entry.getFileName();
+                Logger.info("Extracting {}", lmpFilename);
+                var outDirname = lmpFilename.toString().replace('.', '_');
+                var outPath = extractedPath.resolve(outDirname);
+                Files.createDirectories(outPath);
+                extractor.extractAll(lmpFilename, entry.toAbsolutePath(), outPath, isStreamable);
             }
         }
     }

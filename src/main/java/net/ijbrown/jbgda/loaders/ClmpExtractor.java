@@ -36,15 +36,15 @@ public class ClmpExtractor {
     }
 
 
-    public void extractAll(Path lmpFilename, Path lmpFile, Path lmpOutPath) throws IOException
+    public void extractAll(Path lmpFilename, Path lmpFile, Path lmpOutPath, boolean streamable) throws IOException
     {
         Logger.info("Extracting {}", lmpFilename);
         byte[] fileData = Files.readAllBytes(lmpFile);
 
-        extractAll(fileData, 0, lmpOutPath);
+        extractAll(fileData, 0, lmpOutPath, streamable);
     }
 
-    public void extractAll(byte[] fileData, int fileStartOffset, Path outDir) throws IOException
+    public void extractAll(byte[] fileData, int fileStartOffset, Path outDir, boolean streamable) throws IOException
     {
         int sig = DataUtil.getLEInt(fileData, fileStartOffset); // 0x434C4D50. CLMP
         int zero = DataUtil.getLEInt(fileData, fileStartOffset+4);
@@ -53,7 +53,9 @@ public class ClmpExtractor {
         int dataLen = DataUtil.getLEInt(fileData, fileStartOffset+16);
         int priority = DataUtil.getLEUShort(fileData, fileStartOffset+20);
 
-        int hashTableOffset = fileStartOffset + offsetIn4kBlocks * 4096;
+        int blockSize = streamable ? 0x1000 : 0x100;
+
+        int hashTableOffset = fileStartOffset + offsetIn4kBlocks * blockSize;
         int bitCount= 0;
         for (int i = dataLen + dataLen / 2; i != 0; i >>= 1) {
             ++bitCount;
@@ -67,7 +69,7 @@ public class ClmpExtractor {
         for (int i = 0; i < hashTablecount; ++i) {
             int entryOffset = hashTableOffset + i * 20;
             int hashVal = DataUtil.getLEInt(fileData, entryOffset);
-            int fileDataOffset = DataUtil.getLEInt(fileData, entryOffset+4) * 0x1000;
+            int fileDataOffset = DataUtil.getLEInt(fileData, entryOffset+4) * blockSize;
             int fileDataLen = DataUtil.getLEInt(fileData, entryOffset+12);
             if (hashVal != 0 && fileDataLen != 0) {
                 System.out.println("File: hash = " + hashVal + ", fileDataOffset = " + fileDataOffset + ", fileDataLen = " + fileDataLen);

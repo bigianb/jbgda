@@ -33,6 +33,7 @@ public class ExtractFilesUI {
         gametypeComboModel.addElement(GameType.CHAMPIONS_OF_NORRATH);
         gametypeComboModel.addElement(GameType.CHAMPIONS_RTA);
         gametypeComboModel.addElement(GameType.JUSTICE_LEAGUE_HEROES);
+        gametypeComboModel.addElement(GameType.FALLOUT_BOS);
         gameCombo.setModel(gametypeComboModel);
         gameCombo.addActionListener(e -> {
             var config = new Config((GameType) gameCombo.getSelectedItem());
