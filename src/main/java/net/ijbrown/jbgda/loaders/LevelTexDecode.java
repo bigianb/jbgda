@@ -117,7 +117,7 @@ public class LevelTexDecode
 
                 File outFile = new File(outDirFile, "leveltex_"+entry.cellOffset + "_" + i + ".png");
                 try {
-                    var info = extract(outFile, offset, entry.directoryOffset, entry.cellOffset);
+                    var info = extract(outFile, offset, entry.directoryOffset);
                     infoMap.put(entry.cellOffset + "_" + i, info);
                 } catch (RuntimeException e) {
                     Logger.warn("Failed to decode {}", outFile);
@@ -278,12 +278,11 @@ public class LevelTexDecode
         byte[] data;
     }
 
-    private void extractVQ(File outputfile, int pixelWidth, int pixelHeight, int chunkStartOffset, int deltaOffset, int compressedDataOffset, int pageNum) throws IOException {
+    private void extractVQ(File outputfile, int pixelWidth, int pixelHeight, int chunkStartOffset, int deltaOffset, int compressedDataOffset) throws IOException {
         byte[] pix8s = new byte[256];
 
         BufferedImage image = new BufferedImage(pixelWidth, pixelHeight, BufferedImage.TYPE_INT_ARGB);
 
-        // pageNum is 100 * y + x ... so 4849 for example
         // chunkStartOffset is the start of the page data (i.e. the directory)
         int vqPaletteOffset = DataUtil.getLEInt(fileData, compressedDataOffset) + deltaOffset;
         int numPalEntries = DataUtil.getLEUShort(fileData, vqPaletteOffset);
@@ -473,7 +472,7 @@ public class LevelTexDecode
 
 
 
-    public LevelTexImgInfo extract(File outputfile, int offset, int chunkStartOffset, int cellOffset) throws IOException
+    public LevelTexImgInfo extract(File outputfile, int offset, int chunkStartOffset) throws IOException
     {
         var deltaOffset = convertOffset(0, chunkStartOffset, offset);
 
@@ -493,7 +492,7 @@ public class LevelTexDecode
 
         // CHAMPIONS OF NORRATH have flag 1 set whilst BGDA, RTA and JLH do not
         if (usesVQCompression){
-            extractVQ(outputfile, pixelWidth, pixelHeight, chunkStartOffset, deltaOffset, compressedDataOffset, cellOffset);
+            extractVQ(outputfile, pixelWidth, pixelHeight, chunkStartOffset, deltaOffset, compressedDataOffset);
             return info;
         }
 

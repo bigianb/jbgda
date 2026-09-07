@@ -530,7 +530,7 @@ public class WorldDecode
                     for (int i=1; i<=n; ++i){
                         File outFile = new File(outDirFile, Integer.toString(x)+ y +'_'+ i +".png");
                         try {
-                            levelTexDecoder.extract(outFile, texOffset + 0x40*i, texOffset, 0);
+                            levelTexDecoder.extract(outFile, texOffset + 0x40*i, texOffset);
                         } catch (IOException ioe){
                             sb.append("Failed to export ").append(outFile.getName());
                         }

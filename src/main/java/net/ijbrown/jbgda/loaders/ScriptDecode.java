@@ -47,41 +47,45 @@ public class ScriptDecode
     {
         StringBuilder sb = new StringBuilder();
 
-        int offset0 = DataUtil.getLEInt(fileData, bodyOffset);
-        int hw1 = DataUtil.getLEUShort(fileData, bodyOffset + 0x04);
-        int hw2 = DataUtil.getLEUShort(fileData, bodyOffset + 0x06);
-        int hw3 = DataUtil.getLEUShort(fileData, bodyOffset + 0x08);
-        int hw4 = DataUtil.getLEUShort(fileData, bodyOffset + 0x0A);
+        int size = DataUtil.getLEInt(fileData, bodyOffset);
+        int magic = DataUtil.getLEUShort(fileData, bodyOffset + 0x04);
+        int fileVersion = DataUtil.getSafeByte(fileData, bodyOffset + 0x06);
+        int amxVersion = DataUtil.getSafeByte(fileData, bodyOffset + 0x07);
+        int flags = DataUtil.getLEUShort(fileData, bodyOffset + 0x08);
+        int defSize = DataUtil.getLEUShort(fileData, bodyOffset + 0x0A);
 
         int instructionsOffset = DataUtil.getLEInt(fileData, bodyOffset + 0x0C);
         int stringsOffset = DataUtil.getLEInt(fileData, bodyOffset + 0x10);
-        int offset3 = DataUtil.getLEInt(fileData, bodyOffset + 0x14);
-        int offset4 = DataUtil.getLEInt(fileData, bodyOffset + 0x18);
-        int offset5 = DataUtil.getLEInt(fileData, bodyOffset + 0x1C);
+        int hea = DataUtil.getLEInt(fileData, bodyOffset + 0x14);
+        int stp = DataUtil.getLEInt(fileData, bodyOffset + 0x18);
+        int cip = DataUtil.getLEInt(fileData, bodyOffset + 0x1C);
+
+        sb.append("Total file size: ").append(HexUtil.formatHex(fileData.length)).append("\r\n\r\n");
 
         sb.append("Header:\r\n");
         sb.append("~~~~~~\r\n");
-        sb.append("address  0: ").append(HexUtil.formatHex(offset0)).append("\r\n");
-        sb.append("address  4: ").append(HexUtil.formatHex(hw1)).append("\r\n");
-        sb.append("address  6: ").append(HexUtil.formatHex(hw2)).append("\r\n");
-        sb.append("address  8: ").append(HexUtil.formatHex(hw3)).append("\r\n");
-        sb.append("address  A: ").append(HexUtil.formatHex(hw4)).append("\r\n");
-        sb.append("address  C (inst table): ").append(HexUtil.formatHex(instructionsOffset)).append("\r\n");
-        sb.append("address 10 (string table): ").append(HexUtil.formatHex(stringsOffset)).append("\r\n");
-        sb.append("address 14: ").append(HexUtil.formatHex(offset3)).append("\r\n");
-        sb.append("address 18: ").append(HexUtil.formatHex(offset4)).append("\r\n");
-        sb.append("address 1C: ").append(HexUtil.formatHex(offset5)).append("\r\n");
+        sb.append("size        : ").append(HexUtil.formatHex(size)).append("\r\n");
+        sb.append("magic       : ").append(HexUtil.formatHex(magic)).append("\r\n");
+        sb.append("file version: ").append(HexUtil.formatHex(fileVersion)).append("\r\n");
+        sb.append("AMX version : ").append(HexUtil.formatHex(amxVersion)).append("\r\n");
+        sb.append("flags       : ").append(HexUtil.formatHex(flags)).append("\r\n");
+        sb.append("def size.   : ").append(HexUtil.formatHex(defSize)).append("\r\n");
+        sb.append("code        : ").append(HexUtil.formatHex(instructionsOffset)).append("\r\n");
+        sb.append("data        : ").append(HexUtil.formatHex(stringsOffset)).append("\r\n");
+        sb.append("heap        : ").append(HexUtil.formatHex(hea)).append("\r\n");
+        sb.append("Stackpointer: ").append(HexUtil.formatHex(stp)).append("\r\n");
+        sb.append("cip         : ").append(HexUtil.formatHex(cip)).append("\r\n");
 
-        int numInternals = DataUtil.getLEUShort(fileData, bodyOffset + 0x20);
-        int offsetInternals = DataUtil.getLEInt(fileData, bodyOffset + 0x24);
+        int numPublics = DataUtil.getLEUShort(fileData, bodyOffset + 0x20);
+        int offsetPublics = DataUtil.getLEInt(fileData, bodyOffset + 0x24);
 
         int numExternals = DataUtil.getLEUShort(fileData, bodyOffset + 0x28);
         int offsetExternals = DataUtil.getLEInt(fileData, bodyOffset + 0x2C);
 
-        sb.append(numInternals).append(" Internals:\r\n");
+        sb.append(numPublics).append(" Publics:\r\n");
         sb.append("~~~~~~~~~~~~\r\n");
-        for (int i = 0; i < numInternals; ++i) {
-            printInternal(sb, offsetInternals + 0x18 * i);
+        for (int i = 0; i < numPublics; ++i) {
+            printPublic(sb, offsetPublics + 0x18 * i);
         }
         sb.append("\r\n");
 
@@ -93,7 +97,7 @@ public class ScriptDecode
         sb.append("\r\n");
 
         StringBuilder sb3 = new StringBuilder();
-        dumpStrings(sb3, stringsOffset, offset3 - stringsOffset);
+        dumpStrings(sb3, stringsOffset, hea - stringsOffset);
 
         sb.append("Instructions\r\n");
         sb.append("~~~~~~~~~~~~\r\n\r\n");
@@ -588,7 +592,7 @@ public class ScriptDecode
      */
     private final HashMap<Integer, String> internalsMap = new HashMap<>(64);
 
-    private void printInternal(StringBuilder sb, int offset)
+    private void printPublic(StringBuilder sb, int offset)
     {
         sb.append(HexUtil.formatHexUShort(offset)).append(": ");
         int address = DataUtil.getLEInt(fileData, offset + bodyOffset);
