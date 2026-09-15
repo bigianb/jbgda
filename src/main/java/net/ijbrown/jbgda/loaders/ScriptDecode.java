@@ -789,4 +789,20 @@ public class ScriptDecode
     t4 = var base + s8
     s8 = 0
 
+    Notes CON
+
+    s0 = pc
+    a1 = 4(sp) = accumulator.
+    s1 = var base (also stack bottom)
+    s2
+    s3
+    s4 = stack pointer where s8 is pushed to
+    s5
+    s6 = stack size (grows down from s1)
+    t3 = set to actual script stack pointer on entry
+    t4 = var base + s8
+    s7 = amx
+    s8 = 0 (pushed onto the stack at the start of a routine and then set to s6)
+
+
  */
