@@ -27,7 +27,7 @@ class ObjExporterTest {
         mesh.triangleIndices.add(1);
         mesh.triangleIndices.add(2);
 
-        String actual = ObjExporter.getObjText(mesh);
+        String actual = ObjExporter.getObjText(mesh, "", 1, 1);
 
         String expected = """
                 mtllib material.mtl

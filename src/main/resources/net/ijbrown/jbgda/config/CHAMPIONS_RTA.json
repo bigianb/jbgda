@@ -16,6 +16,10 @@
     {
       "vifName": "sword.vif",
       "anmNames": []
+    },
+    {
+      "vifName": "sylea.vif",
+      "anmNames": ["idle.anm", "stab.anm", "syle_block.anm", "sylea_idle.anm", "talk.anm", "walk.anm"]
     }
   ],
   "characters": [
