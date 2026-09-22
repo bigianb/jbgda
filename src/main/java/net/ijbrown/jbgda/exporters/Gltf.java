@@ -393,7 +393,7 @@ public class Gltf
 
     private enum ComponentType
     {
-        UNSIGNED_SHORT(5123), FLOAT(5126), SBYTE(5120), BYTE(5121);
+        UNSIGNED_SHORT(5123), UNSIGNED_BYTE(5121), FLOAT(5126), BYTE(5120);
 
         private final int id;
 
@@ -491,14 +491,28 @@ public class Gltf
     private Accessor buildInverseBindingMatrixAccessor(AnmData anmData)
     {
         List<Matrix4f> matrices = new ArrayList<>();
-        matrices.add(new Matrix4f());       // Root is at 0
-        for (var jointPos : anmData.bindingPose){
-            matrices.add(new Matrix4f().translation(-jointPos.x(), -jointPos.y(), -jointPos.z()));
+        matrices.add(new Matrix4f()); // Root joint is identity in the bind pose.
+
+        var worldPos = new Vector3f[anmData.numJoints];
+        for (int joint = 0; joint < anmData.numJoints; ++joint) {
+            var local = anmData.bindingPoseLocal.get(joint);
+            var parent = anmData.jointParents.get(joint);
+            var world = new Vector3f(local);
+            if (parent >= 0) {
+                world.add(worldPos[parent]);
+            }
+            worldPos[joint] = world;
+        }
+
+        for (int joint = 0; joint < anmData.numJoints; ++joint) {
+            matrices.add(new Matrix4f().translation(
+                -worldPos[joint].x(),
+                -worldPos[joint].y(),
+                -worldPos[joint].z()));
         }
 
         return buildMat4Accessor(matrices);
     }
-
 
     private Accessor buildMat4Accessor(List<Matrix4f> matrices) {
         // mat4 is column major
@@ -613,9 +627,9 @@ public class Gltf
         meshPrimAccessors.normalsAccessor.min_fa = new float[]{minNormal.x, minNormal.y, minNormal.z};
         meshPrimAccessors.normalsAccessor.max_fa = new float[]{maxNormal.x, maxNormal.y, maxNormal.z};
 
-        meshPrimAccessors.joints0Accessor = createAccessor(jointsBuffer.id, 0, mesh.vertices.size(), "VEC4", ComponentType.BYTE);
-        meshPrimAccessors.weights0Accessor = createAccessor(weightsBuffer.id, 0, mesh.vertices.size(), "VEC4", ComponentType.BYTE);
-        meshPrimAccessors.weights0Accessor.normalised=true;
+        meshPrimAccessors.joints0Accessor = createAccessor(jointsBuffer.id, 0, mesh.vertices.size(), "VEC4", ComponentType.UNSIGNED_BYTE);
+        meshPrimAccessors.weights0Accessor = createAccessor(weightsBuffer.id, 0, mesh.vertices.size(), "VEC4", ComponentType.UNSIGNED_BYTE);
+        meshPrimAccessors.weights0Accessor.normalised = true;
         return meshPrimAccessors;
     }
 

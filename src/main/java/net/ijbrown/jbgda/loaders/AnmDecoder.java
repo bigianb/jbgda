@@ -122,7 +122,7 @@ public class AnmDecoder {
                 pose.rotation = new Quaternionf(pose.rotation.x + angDelta.x,
                         pose.rotation.y + angDelta.y,
                         pose.rotation.z + angDelta.z,
-                        pose.rotation.w + angDelta.w);
+                        pose.rotation.w + angDelta.w).normalize();
                 pose.frameNo = totalFrame;
                 pose.angularVelocity = angVel;
 
@@ -160,7 +160,7 @@ public class AnmDecoder {
         }
         anmData.numFrames = totalFrame + 1;
 
-        BuildPerFramePoses(anmData);
+        BuildPerFramePoses(anmData, 512.0f, 131072.0f);
         BuildPerFrameFkPoses(anmData);
 
         buildKeyframePoses(anmData);
@@ -171,7 +171,8 @@ public class AnmDecoder {
     public AnmData decodeRTA(byte[] data, int startOffset, int len) {
         var anmData = new AnmData();
         anmData.numJoints = DataUtil.getLEInt(data, startOffset);
-        int maxFrames = startOffset + DataUtil.getLEInt(data, startOffset + 0x04);
+        
+        int maxFrames = DataUtil.getLEInt(data, startOffset + 0x04);
         int framePoseOffset = startOffset + DataUtil.getLEInt(data, startOffset + 0x08);
         int bindingPoseOffset = startOffset + DataUtil.getLEInt(data, startOffset + 0x0C);
         int skeletonDefOffset = startOffset + DataUtil.getLEInt(data, startOffset + 0x10);
@@ -225,6 +226,7 @@ public class AnmDecoder {
             pose.angularVelocity = new Quaternionf(0, 0, 0, 0);
             pose.position = new Vector3f(x, y, z);
             pose.velocity = new Vector3f(0.0f, 0.0f, 0.0f);
+
             pose.jointNo = jointNo;
             pose.frameNo = 0;
             anmData.poses.add(pose);
@@ -247,8 +249,9 @@ public class AnmDecoder {
             if (count == 0xFF) {
                 break;
             }
-            int flag = DataUtil.getBits(data, frameBitpos, 1, true);
+            int isTranslation = DataUtil.getBits(data, frameBitpos, 1, true);
             frameBitpos += 1;
+
             int jointNo = DataUtil.getBits(data, frameBitpos, 6, true);
             frameBitpos += 6;
 
@@ -260,16 +263,33 @@ public class AnmDecoder {
                 if (pose != null) {
                     anmData.poses.add(pose);
                 }
+                // A new keyframe must store the integrated pose at frameNumber
+                // for BOTH channels, even if this record only updates one of
+                // them. BuildPerFramePoses extrapolates forward from each
+                // keyframe using its stored velocity, so a stale rotation or
+                // position on a keyframe shows up as a one-frame snap.
+                float angDt = (frameNumber - curAngVelFrame[jointNo]) / 131072.0f;
+                float posDt = (frameNumber - curVelFrame[jointNo]) / 256.0f;
+                var av = curPose[jointNo].angularVelocity;
+                var v = curPose[jointNo].velocity;
+                
                 pose = new AnmData.Pose();
                 pose.frameNo = frameNumber;
                 pose.jointNo = jointNo;
-                pose.position = curPose[jointNo].position;
-                pose.rotation = curPose[jointNo].rotation;
-                pose.angularVelocity = curPose[jointNo].angularVelocity;
-                pose.velocity = curPose[jointNo].velocity;
+                pose.position = new Vector3f(
+                        curPose[jointNo].position.x + v.x * posDt,
+                        curPose[jointNo].position.y + v.y * posDt,
+                        curPose[jointNo].position.z + v.z * posDt);
+                pose.rotation = new Quaternionf(
+                        curPose[jointNo].rotation.x + av.x * angDt,
+                        curPose[jointNo].rotation.y + av.y * angDt,
+                        curPose[jointNo].rotation.z + av.z * angDt,
+                        curPose[jointNo].rotation.w + av.w * angDt).normalize();
+                pose.angularVelocity = new Quaternionf(av);
+                pose.velocity = new Vector3f(v);
             }
 
-            if (flag == 0) {
+            if (isTranslation == 0) {
                 var rotLen = DataUtil.getBits(data, frameBitpos, 4, true) + 1;
                 frameBitpos += 4;
 
@@ -283,21 +303,12 @@ public class AnmDecoder {
                 frameBitpos += rotLen;
 
                 Quaternionf angVel = new Quaternionf(b, c, d, a);
-                var prevAngVel = pose.angularVelocity;
-                var coeff = (frameNumber - curAngVelFrame[jointNo]) / 131072.0f;
-                Quaternionf angDelta = new Quaternionf(prevAngVel.x * coeff,
-                        prevAngVel.y * coeff,
-                        prevAngVel.z * coeff,
-                        prevAngVel.w * coeff);
-                pose.rotation = new Quaternionf(pose.rotation.x + angDelta.x,
-                        pose.rotation.y + angDelta.y,
-                        pose.rotation.z + angDelta.z,
-                        pose.rotation.w + angDelta.w);
+
                 pose.frameNo = frameNumber;
                 pose.angularVelocity = angVel;
 
-                curPose[jointNo].rotation = pose.rotation;
-                curPose[jointNo].angularVelocity = pose.angularVelocity;
+                curPose[jointNo].rotation = new Quaternionf(pose.rotation);
+                curPose[jointNo].angularVelocity = new Quaternionf(pose.angularVelocity);
                 curAngVelFrame[jointNo] = frameNumber;
             } else {
                 var posLen = DataUtil.getBits(data, frameBitpos, 4, true) + 1;
@@ -311,15 +322,10 @@ public class AnmDecoder {
                 frameBitpos += posLen;
 
                 Vector3f vel = new Vector3f(x, y, z);
-                var prevVel = pose.velocity;
-                var coeff = (frameNumber - curVelFrame[jointNo]) / 256.0f;
-                Vec3F posDelta = new Vec3F(prevVel.x * coeff, prevVel.y * coeff, prevVel.z * coeff);
-                pose.position = new Vector3f(pose.position.x + posDelta.x, pose.position.y + posDelta.y, pose.position.z + posDelta.z);
-                pose.frameNo = frameNumber;
                 pose.velocity = vel;
-
-                curPose[jointNo].position = pose.position;
-                curPose[jointNo].velocity = pose.velocity;
+                pose.frameNo = frameNumber;
+                curPose[jointNo].position = new Vector3f(pose.position);
+                curPose[jointNo].velocity = new Vector3f(vel);
                 curVelFrame[jointNo] = frameNumber;
             }
         }
@@ -328,7 +334,7 @@ public class AnmDecoder {
         }
         anmData.numFrames = maxFrames + 1;
 
-        BuildPerFramePoses(anmData);
+        BuildPerFramePoses(anmData, 256f, 131072f);
         BuildPerFrameFkPoses(anmData);
 
         buildKeyframePoses(anmData);
@@ -336,7 +342,7 @@ public class AnmDecoder {
         return anmData;
     }
 
-    private void BuildPerFramePoses(AnmData anmData) {
+    private void BuildPerFramePoses(AnmData anmData, float velScale, float angVelScale) {
         var pendingFramePoses = new AnmData.Pose[anmData.numFrames][anmData.numJoints];
         for (var pose : anmData.poses) {
             if (pose != null && pose.frameNo <= anmData.numFrames) {
@@ -349,12 +355,12 @@ public class AnmDecoder {
             for (var frame = 0; frame < anmData.numFrames; ++frame) {
                 if (pendingFramePoses[frame][joint] == null && prevPose != null) {
                     var frameDiff = frame - prevPose.frameNo;
-                    var avCoEff = frameDiff / 131072.0;
+                    var avCoEff = frameDiff / angVelScale;
                     Quaternionf rotDelta = new Quaternionf(prevPose.angularVelocity.x * avCoEff,
                             prevPose.angularVelocity.y * avCoEff, prevPose.angularVelocity.z * avCoEff,
                             prevPose.angularVelocity.w * avCoEff);
 
-                    var velCoEff = (float) frameDiff / 512.0f;
+                    var velCoEff = (float) frameDiff / velScale;
                     Vector3f posDelta = new Vector3f(prevPose.velocity.x * velCoEff, prevPose.velocity.y * velCoEff,
                             prevPose.velocity.z * velCoEff);
 
@@ -365,9 +371,9 @@ public class AnmDecoder {
                             prevPose.position.z + posDelta.z);
                     pose.rotation = new Quaternionf(prevPose.rotation.x + rotDelta.x,
                             prevPose.rotation.y + rotDelta.y, prevPose.rotation.z + rotDelta.z,
-                            prevPose.rotation.w + rotDelta.w);
-                    pose.angularVelocity = prevPose.angularVelocity;
-                    pose.velocity = prevPose.velocity;
+                            prevPose.rotation.w + rotDelta.w).normalize();
+                    pose.angularVelocity = new Quaternionf(prevPose.angularVelocity);
+                    pose.velocity = new Vector3f(prevPose.velocity);
 
                     pendingFramePoses[frame][joint] = pose;
                 }

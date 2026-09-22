@@ -10,9 +10,10 @@ public class ObjExporter {
     // Create the text for an OBJ file given a mesh
     public static String getObjText(VifDecode.Mesh mesh, String texName, int width, int height) {
         StringBuilder sb = new StringBuilder();
+        String materialName = (texName == null || texName.isBlank()) ? "material0" : texName;
 
         sb.append("mtllib material.mtl\n");
-        sb.append("usemtl ").append(texName).append("\n");
+        sb.append("usemtl ").append(materialName).append("\n");
 
         for (Vec3F v : mesh.vertices) {
             sb.append("v ")
@@ -21,16 +22,12 @@ public class ObjExporter {
               .append(formatFloat(v.z))
               .append('\n');
         }
-        int w16 = width * 16;
-        int h16 = height * 16;
+
         for (VifDecode.UV uv : mesh.uvCoords) {
             if (uv != null) {
-                float u = (float) (uv.u % w16)/ w16;
-                float v = (float) (uv.v % h16) / h16;
-
                 sb.append("vt ")
-                  .append(formatFloat(u)).append(' ')
-                  .append(formatFloat(1.0f - v))
+                  .append(formatFloat((float) uv.u)).append(' ')
+                  .append(formatFloat((float) uv.v))
                   .append('\n');
             }
         }
