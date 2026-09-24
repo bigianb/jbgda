@@ -3,31 +3,23 @@ package net.ijbrown.jbgda.config;
 import com.google.gson.Gson;
 import net.ijbrown.jbgda.loaders.GameType;
 
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.net.URL;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 
 public class GameConfigs {
 
     public void read() throws IOException {
+        String resourcePath = "/net/ijbrown/jbgda/config/CHAMPIONS_RTA.json";
+        try (InputStream stream = GameConfigs.class.getResourceAsStream(resourcePath)) {
+            if (stream == null) {
+                throw new IOException("Resource not found: " + resourcePath);
+            }
 
-        var loader = getClass().getClassLoader();
-
-        URL url = loader.getResource("net/ijbrown/jbgda/config/CHAMPIONS_RTA.json");
-        if (url == null){
-            throw new IOException("cannot build URL");
+            Gson gson = new Gson();
+            rta_game_config = gson.fromJson(new InputStreamReader(stream, StandardCharsets.UTF_8), GameConfig.class);
         }
-        File configFile = null;
-        try {
-            configFile = new File(url.toURI());
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-
-        Gson gson = new Gson();
-        rta_game_config = gson.fromJson(new FileReader(configFile), GameConfig.class);
     }
 
     public GameConfig getGameConfig(GameType gameType)

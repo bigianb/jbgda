@@ -6,11 +6,12 @@
     
     <groupId>net.ijbrown.jbgda</groupId>
     <artifactId>jbgda</artifactId>
-    <version>1.0.0</version>
+    <version>0.1.0</version>
     
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <main.class>net.ijbrown.jbgda.demos.ViewChest</main.class>
+        <main.class>net.ijbrown.jbgda.demos.ExtractFilesUI</main.class>
+
         <!-- Versions -->
         <java.version>25</java.version>
 		
@@ -103,6 +104,59 @@
                     <classifier>natives-macos-arm64</classifier>
                 </dependency>
             </dependencies>
+        </profile>
+        <!-- Profile to replicate the IntelliJ jbgda:jar artifact -->
+        <profile>
+            <id>extractui-jar</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.5.1</version>
+                        <executions>
+                            <execution>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <!-- Matches the target artifact file name -->
+                                    <finalName>jbgda</finalName>
+
+                                    <artifactSet>
+                                        <includes>
+                                            <include>net.ijbrown.jbgda:jbgda</include>
+                                            <include>org.joml:joml</include>
+                                            <include>org.tinylog:tinylog-api</include>
+                                            <include>org.tinylog:tinylog-impl</include>
+                                        </includes>
+                                    </artifactSet>
+                                    
+                                    <!-- Uses the alternative main class specified for the fat jar -->
+                                    <transformers>
+                                        <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                            <mainClass>${extractui.main.class}</mainClass>
+                                        </transformer>
+                                    </transformers>
+                                    
+                                    <!-- Strips signing files from dependencies to avoid runtime SecurityExceptions -->
+                                    <filters>
+                                        <filter>
+                                            <artifact>*:*</artifact>
+                                            <excludes>
+                                                <exclude>META-INF/*.SF</exclude>
+                                                <exclude>META-INF/*.DSA</exclude>
+                                                <exclude>META-INF/*.RSA</exclude>
+                                            </excludes>
+                                        </filter>
+                                    </filters>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
 
     </profiles>
