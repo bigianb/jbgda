@@ -34,6 +34,26 @@ individual visibility in the babylon viewer to see the differences. One example 
 has sub-meshes for both the interior exploding powder keg and also various amounts of gold coins. During gameplay the
 engine will select one interior to display.
 
+### Running the UI from a release
+
+There is a simple UI to help people not familiar with using a Java IDE.
+The first thing you need is Java 25 installed.
+Then, download the jar file from github releases and double click it to run.
+If you want to see the console output (can be useful), from a terminal prompt
+run the jar with `java --jar jbgda.jar`
+
+Once in the UI, select the game you're interested in. The path where the data is expected will be shown in the UI.
+Make sure the data is there including the elf file (the SLES / SLUS one) because some data is extracted from that.
+
+If it is the first time, check the extract Lmp checkbox. If the lmps are already extracted, you can uncheck this.
+If you now click the extract button, everything will be extracted and converted. The output will be written to a
+DATA_EXTRACTED directory next to the DATA directory. It can take a long time - if you are running from the terminal
+you can see it writing logs.
+If you are only interested in a subset of files, then you can enter a substring in the text field of the UI to
+restrict what is processed. So, say you are only interested in the arenabeast vif file, typing arenabeast or
+even something like arena will be much faster.
+Generally you only do this if you're changing the code - for a normal non-dev user you would only run this tool once.
+
 ### Credits
 
 The LWJGL Vulkan code is from https://github.com/lwjglgamedev/vulkanbook

@@ -197,7 +197,10 @@ public class AnmDecoder {
 
         // RTA reads the anim as a bit stream
         int frameBitpos = framePoseOffset * 8;
+        // anmData.poses is a list of keyframes, each of which contains a pose for a single joint at a single frame.
         anmData.poses = new ArrayList<>();
+
+        // The first frame is stored as a series of absolute values for each joint, so we can read it in a loop.
         for (int jointNo = 0; jointNo < anmData.numJoints; ++jointNo) {
 
             var posLen = DataUtil.getBits(data, frameBitpos, 4, true) + 1;
@@ -224,6 +227,7 @@ public class AnmDecoder {
             var pose = new AnmData.Pose();
             pose.rotation = new Quaternionf(b, c, d, a);
             pose.angularVelocity = new Quaternionf(0, 0, 0, 0);
+
             pose.position = new Vector3f(x, y, z);
             pose.velocity = new Vector3f(0.0f, 0.0f, 0.0f);
 
@@ -234,6 +238,7 @@ public class AnmDecoder {
             curPose[jointNo] = pose;
         }
 
+        // These track the last frame number at which a joint's angular velocity or velocity was updated.
         var curAngVelFrame = new int[anmData.numJoints];
         var curVelFrame = new int[anmData.numJoints];
 
@@ -243,6 +248,10 @@ public class AnmDecoder {
 
         var maxbitpos = (startOffset + len) * 8;
 
+        // now walk forward and collect the keyframes in anmData.poses.
+        // Each keyframe is a pose for a single joint at a single frame.
+        // Note that there may be 2 keyframes for the same joint at the same frame, one for translation and one for rotation.
+        // The BuildPerFramePoses method will integrate these into a single pose per joint per frame.
         while (frameBitpos < (maxbitpos - 22) && frameNumber < maxFrames) {
             int count = DataUtil.getBits(data, frameBitpos, 8, true);
             frameBitpos += 8;
@@ -260,14 +269,13 @@ public class AnmDecoder {
             }
             frameNumber += count;
             if (pose == null || pose.frameNo != frameNumber || pose.jointNo != jointNo) {
+                // we have a new keyframe (frame or joint has changed), so store the previous one if it exists.
                 if (pose != null) {
                     anmData.poses.add(pose);
                 }
                 // A new keyframe must store the integrated pose at frameNumber
-                // for BOTH channels, even if this record only updates one of
-                // them. BuildPerFramePoses extrapolates forward from each
-                // keyframe using its stored velocity, so a stale rotation or
-                // position on a keyframe shows up as a one-frame snap.
+                // for BOTH channels, even though this record only updates one of
+                // them.
                 float angDt = (frameNumber - curAngVelFrame[jointNo]) / 131072.0f;
                 float posDt = (frameNumber - curVelFrame[jointNo]) / 256.0f;
                 var av = curPose[jointNo].angularVelocity;
@@ -342,7 +350,10 @@ public class AnmDecoder {
         return anmData;
     }
 
+    // Builds per-frame poses by interpolating between keyframes
+    // Returns a 2D array of poses, indexed by frame number and joint number.
     private void BuildPerFramePoses(AnmData anmData, float velScale, float angVelScale) {
+        
         var pendingFramePoses = new AnmData.Pose[anmData.numFrames][anmData.numJoints];
         for (var pose : anmData.poses) {
             if (pose != null && pose.frameNo <= anmData.numFrames) {
@@ -354,13 +365,14 @@ public class AnmDecoder {
             AnmData.Pose prevPose = null;
             for (var frame = 0; frame < anmData.numFrames; ++frame) {
                 if (pendingFramePoses[frame][joint] == null && prevPose != null) {
+                    // Found a frame with no pose for this joint, but we have a previous pose to interpolate from.
                     var frameDiff = frame - prevPose.frameNo;
                     var avCoEff = frameDiff / angVelScale;
                     Quaternionf rotDelta = new Quaternionf(prevPose.angularVelocity.x * avCoEff,
                             prevPose.angularVelocity.y * avCoEff, prevPose.angularVelocity.z * avCoEff,
                             prevPose.angularVelocity.w * avCoEff);
 
-                    var velCoEff = (float) frameDiff / velScale;
+                    var velCoEff = frameDiff / velScale;
                     Vector3f posDelta = new Vector3f(prevPose.velocity.x * velCoEff, prevPose.velocity.y * velCoEff,
                             prevPose.velocity.z * velCoEff);
 

@@ -1,6 +1,22 @@
 {
   "models": [
     {
+      "vifName": "arenabeast.vif",
+      "anmNames": [
+        "atak_left.anm", "atak_ryt.anm", "atakclo1.anm", "atakclo2.anm", "atakclo3.anm",
+        "atakclo22.anm", "atakkill.anm", "ataklng1.anm", "ataklng2.anm", "ataklng3.anm",
+        "death.anm", "entrance.anm",
+        "hitreact1.anm", "hitreact2.anm", "hitreact3.anm",
+        "idel1.anm", "roar.anm", "taunt.anm", "walk.anm"]
+    },
+    {
+      "vifName": "adrake.vif",
+      "anmNames": [
+        "adrake_move.anm", "adrake_osflee.anm", "adrake_osidle.anm",
+        "idlea.anm", "idleb.anm"
+      ]
+    },
+    {
       "vifName": "raloszek.vif",
       "anmNames": ["attack_left_b.anm", "attack_left.anm", "attack_right_b.anm", "attack_right.anm",
         "attack_xy.anm", "attack1.anm", "attack2.anm", "attack3.anm",
